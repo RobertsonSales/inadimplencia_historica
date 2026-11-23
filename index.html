@@ -27,6 +27,11 @@ section{margin-top:28px}.h{display:flex;gap:10px;align-items:baseline;flex-wrap:
 .chip{display:inline-flex;gap:6px;align-items:center;background:var(--sf);border:1px solid var(--ln);border-radius:99px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600;margin:3px 4px 3px 0}.chip button{border:0;background:none;color:var(--mu);cursor:pointer}
 .hm td{text-align:center;color:#fff;font-weight:600;font-size:12px;min-width:46px}.hm td:first-child{color:var(--tx);text-align:left;font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis}
 .hide{display:none!important}.err{color:var(--rd);font-weight:600}.mu{color:var(--mu)}.pr td:first-child{font-weight:700;white-space:normal;width:220px}.pr td{white-space:normal;text-align:left}
+.kp.clk{cursor:pointer;transition:background .15s}.kp.clk:hover{background:var(--sf)}.kp.clk:focus-visible,.mdl .btn:focus-visible,.mdl input:focus-visible{outline:2px solid var(--b2);outline-offset:2px}
+dialog.mdl{width:min(1120px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 32px);padding:0;margin:auto;border:1px solid var(--ln);border-radius:14px;background:var(--pn);color:var(--tx);box-shadow:0 30px 80px -24px rgba(5,12,22,.6);overflow:hidden}
+dialog.mdl[open]{display:flex;flex-direction:column}dialog.mdl::backdrop{background:rgba(9,18,31,.6)}body:has(dialog.mdl[open]){overflow:hidden}
+.mdl .mdh{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--ln)}.mdl .mdh h2{margin:0;font-size:18px}.mdl .mdh p{margin:3px 0 0;font-size:12.5px;color:var(--mu)}
+.mdl .mdb{overflow:auto;padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}.mdl .mdt{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.mdl .mdt .mu{margin-left:auto;font-size:12.5px}.mdl .sc{max-height:min(52dvh,520px)}.mdl th:nth-child(2){text-align:left}
 /* HOME (idêntica à aplicação Inadimplência Comportamental) */
 #home{--bg:#0b1620;--panel:#122230;--panel2:#18303f;--line:#24455a;--tx:#e8f1f5;--mut:#8aa6b6;--pri:#19c3a6;--warn:#f5b53d;--bad:#ef5b5b;--ok:#4ad07a;--blue:#4aa3ff;font:400 16px/normal 'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tx);margin:0}
 #home *{box-sizing:border-box;margin:0;padding:0}
@@ -138,6 +143,10 @@ section{margin-top:28px}.h{display:flex;gap:10px;align-items:baseline;flex-wrap:
 <section><div class="h"><h2>Títulos</h2><span id="tI"></span></div><div class="c"><div class="p f"><input type="search" id="qT" placeholder="Filtrar por cliente ou descrição…" style="min-width:280px"><select id="fSit"><option value="">Todas as situações</option><option>Pago com atraso</option><option>Pago no prazo</option><option>Em aberto vencido</option><option>Em aberto a vencer</option></select><button class="btn s" id="bX">Exportar Excel</button><button class="btn s" id="bP">Relatório PDF A4</button></div><div class="sc"><table id="tT"></table></div></div></section>
 <section><div class="h"><h2>Premissas e metodologia</h2></div><div class="c"><table class="pr" id="pr"></table></div></section>
 </div></main>
+<dialog class="mdl" id="mAb" aria-labelledby="abT"><div class="mdh"><div><h2 id="abT">Títulos em aberto</h2><p id="abSub"></p></div><button class="btn s" id="mX" type="button">Fechar</button></div>
+<div class="mdb"><div class="k" id="abS" style="margin-top:0"></div>
+<div class="mdt"><div class="tabs" id="abTabs" style="margin:0"><button class="btn s on" type="button" data-f="todos">Todos</button><button class="btn s" type="button" data-f="venc">Vencidos</button><button class="btn s" type="button" data-f="avenc">A vencer</button></div><input type="search" id="qAb" placeholder="Filtrar por cliente ou descrição…" style="min-width:240px"><span class="mu" id="abI"></span><button class="btn s" id="abX" type="button">Exportar Excel</button></div>
+<div class="sc"><table id="tAb"></table></div></div></dialog>
 </div>
 <script>
 const $=s=>document.querySelector(s),DAY=864e5,NUM=(v,d=0)=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),PCT=v=>NUM(v*100,1)+'%',BRL=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -222,7 +231,7 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 function render(){const R=current();CUR=R;$('#sug').classList.contains('hide')||sug();
  $('#chips').innerHTML=[...SEL].map(([k,n])=>`<span class="chip">${esc(n)}<button data-x="${k}">×</button></span>`).join('');$('#chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{SEL.delete(b.dataset.x);render()});
  const a=agg(R),C=[...G(R,r=>r.ck)].map(([k,rs])=>({k,nome:rs[0].cli,...beh(rs)})),sc={};C.forEach(c=>sc[c.sc]=(sc[c.sc]||0)+1);
- const kp=(t,v,s,c)=>`<div class="c kp" style="--c:${c||'var(--b2)'}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+ const nab=R.filter(r=>!r.liq).length,kp=(t,v,s,c,x)=>`<div class="c kp${x?' clk':''}" style="--c:${c||'var(--b2)'}"${x||''}><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
  $('#kpis').innerHTML=[kp('Faturamento no recorte',BRL(a.v),NUM(a.n)+' títulos · '+NUM(a.cli)+' clientes'),
   kp('Em atraso',BRL(a.vi),'pago '+BRLc(a.va)+' + em aberto vencido '+BRLc(a.vab),'var(--rd)'),
   kp('Margem de inadimplência',PCT(a.margem),'do faturamento do recorte','var(--am)'),
@@ -230,8 +239,8 @@ function render(){const R=current();CUR=R;$('#sug').classList.contains('hide')||
   kp('Pontualidade',PCT(a.pont),'títulos pagos até o vencimento','var(--gr)'),
   kp('Clientes com atraso',NUM(a.cliI),PCT(a.cli?a.cliI/a.cli:0)+' da base · score A:'+(sc.A||0)+' B:'+(sc.B||0)+' C:'+(sc.C||0)+' D:'+(sc.D||0)+' E:'+(sc.E||0)),
   kp('Atraso > 30 dias',BRL(a.v30),PCT(a.v?a.v30/a.v:0)+' do faturamento','var(--rd)'),
-  kp('Em aberto',BRL(a.ab),a.ab?'títulos sem liquidação':'toda a base está liquidada · antecipados: '+NUM(a.ant),'var(--b2)')].concat(clienteFiltrado()?cardsCliente(R,a,kp):[]).join('');
- insights(R,a,C);charts(R,a);charts2(R);heat(R,C);detail(R);rank(R);tit(R);prem(R,a)}
+  kp('Em aberto',BRL(a.ab),nab?NUM(nab)+(nab==1?' título sem liquidação':' títulos sem liquidação')+' · clique para ver o detalhe':'toda a base está liquidada · antecipados: '+NUM(a.ant),'var(--b2)',nab?' data-ab role="button" tabindex="0" aria-haspopup="dialog" aria-label="Em aberto: ver detalhe dos títulos"':'')].concat(clienteFiltrado()?cardsCliente(R,a,kp):[]).join('');
+ insights(R,a,C);charts(R,a);charts2(R);heat(R,C);detail(R);rank(R);tit(R);prem(R,a);if($("#mAb").open)abRender()}
 /* cards extras: só aparecem quando há filtro por cliente */
 function clienteFiltrado(){return SEL.size>0||$('#qCli').value.trim()!==''}
 function metCli(R){const ap=R.filter(r=>r.eff!=null),n=ap.length,c=l=>ap.filter(r=>r.eff>l).length,nd=ap.filter(r=>r.eff>0),qd=nd.length;
@@ -319,4 +328,26 @@ function prem(R,a){const ab=R.filter(r=>!r.liq);$('#pr').innerHTML=[
  ['Recorrência e tendência','Recorrência: % dos meses ativos com ao menos um título inadimplente. Tendência: prazo ponderado dos últimos 6 meses ativos do cliente vs. os 6 anteriores (±3 dias = estável).'],
  ['Cards por cliente','Exibidos apenas com filtro de cliente. Títulos &gt; 30/60/90 dias: quantidade e % sobre os títulos apurados (pagos + em aberto vencidos), faixas cumulativas. Sem pagamento no dia do vencimento: títulos pagos após o vencimento ou em aberto vencidos; mostra a média de dias de atraso e o % sobre os apurados.'],
  ['Vendedores','Grafias normalizadas (acentos, % de comissão, “e” → “/”); vazios = SEM VENDEDOR.']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}
+
+/* modal: títulos em aberto (card “Em aberto”) */
+let AB_F='todos',ABV=[];
+const abEnt=()=>{const ref=new Date($('#fRef').value+'T00:00');return CUR.filter(r=>!r.liq).map(r=>{const v=r.eff!=null;return{r,v,d:v?r.eff:-Math.round((r.venc-ref)/DAY)}})};
+function abRender(){const E=abEnt(),sm=x=>x.reduce((s,e)=>s+e.r.val,0),V=E.filter(e=>e.v),A=E.filter(e=>!e.v),tt=sm(E),tv=sm(V),mx=V.reduce((m,e)=>!m||e.d>m.d?e:m,null),
+ kp=(t,v,s,c)=>`<div class="c kp" style="--c:${c}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s}</div></div>`,
+ nm=SEL.size?[...SEL.values()].join(', '):$('#qCli').value.trim();
+ $('#abSub').textContent=(nm?'Cliente: '+(nm.length>140?nm.slice(0,137)+'…':nm):'Todos os clientes do recorte atual')+' · referência '+fmtD(new Date($('#fRef').value+'T00:00'));
+ $('#abS').innerHTML=kp('Total em aberto',BRL(tt),NUM(E.length)+(E.length==1?' título':' títulos')+' · '+(()=>{const c=new Set(E.map(e=>e.r.ck)).size;return NUM(c)+(c==1?' cliente':' clientes')})(),'var(--b2)')+kp('Vencido',BRL(tv),NUM(V.length)+(V.length==1?' título':' títulos')+' · '+PCT(tt?tv/tt:0)+' do em aberto','var(--rd)')+kp('A vencer',BRL(sm(A)),NUM(A.length)+(A.length==1?' título':' títulos'),'var(--gr)')+kp('Maior atraso corrente',mx?NUM(mx.d)+' dias':'—',mx?esc(mx.r.cli)+' · '+BRLc(mx.r.val):'nenhum título vencido','var(--am)');
+ [...$('#abTabs').children].forEach(b=>b.classList.toggle('on',b.dataset.f==AB_F));
+ const q=key($('#qAb').value),L=E.filter(e=>(AB_F=='todos'||(AB_F=='venc')==e.v)&&(!q||key(e.r.cli+e.r.desc).includes(q))).sort((a,b)=>b.d-a.d||b.r.val-a.r.val),LIM=1500,t=$('#tAb');ABV=L;
+ $('#abI').textContent=NUM(L.length)+' de '+NUM(E.length)+' títulos · '+BRL(sm(L))+(L.length>LIM?' · exibindo os '+NUM(LIM)+' primeiros (exporte para ver todos)':'');
+ if(!L.length){t.innerHTML='<tbody><tr><td class="mu" style="text-align:center;padding:28px">Nenhum título em aberto com os filtros atuais.</td></tr></tbody>';return}
+ tbl(t,['Cliente','Descrição','Vencimento','Prazo','Valor','Vendedor','Empresa','Situação'],L.slice(0,LIM).map(e=>{const r=e.r;return{c:[[esc(r.cli),r.cli],[`<span style="display:block;text-align:left;white-space:normal;max-width:260px">${esc(r.desc||'—')}</span>`,r.desc],[fmtD(r.venc),+r.venc],
+  [e.v?`<b class="bd">${NUM(e.d)} d em atraso</b>`:`<span class="nt">${e.d<0?'vence em '+NUM(-e.d)+' d':'vence na referência'}</span>`,e.d],[BRL(r.val),r.val],[esc(r.vend),r.vend],[esc(r.emp),r.emp],[`<span class="tag ${e.v?'bd':'nt'}">${r.sit}</span>`,r.sit]]}}))}
+function abOpen(){AB_F='todos';$('#qAb').value='';$('#tAb')._s=null;abRender();const d=$('#mAb');if(!d.open)d.showModal();d.querySelector('.mdb').scrollTop=0}
+function xlAb(){if(!ABV.length)return alert('Nenhum título para exportar.');const ws=XLSX.utils.aoa_to_sheet([['CLIENTE','DESCRIÇÃO','VENCIMENTO','DIAS EM ATRASO','DIAS PARA VENCER','VALOR','VENDEDOR','EMPRESA','SITUAÇÃO'],...ABV.map(e=>[e.r.cli,e.r.desc,e.r.venc,e.v?e.d:'',e.v?'':Math.max(0,-e.d),e.r.val,e.r.vend,e.r.emp,e.r.sit])],{cellDates:true});ws['!cols']=[30,40,12,14,16,14,22,13,20].map(w=>({wch:w}));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Em aberto');dl('titulos_em_aberto.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx',cellDates:true}))}
+$('#kpis').addEventListener('click',e=>{if(e.target.closest('[data-ab]'))abOpen()});
+$('#kpis').addEventListener('keydown',e=>{if((e.key=='Enter'||e.key==' ')&&e.target.closest('[data-ab]')){e.preventDefault();abOpen()}});
+$('#mX').onclick=()=>$('#mAb').close();$('#mAb').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
+$('#abTabs').onclick=e=>{if(e.target.dataset.f){AB_F=e.target.dataset.f;abRender()}};$('#qAb').oninput=abRender;$('#abX').onclick=xlAb;
 </script></body></html>
