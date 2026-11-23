@@ -146,8 +146,18 @@ const noAcc=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''),key
 const tc=s=>(s||'').toLowerCase().replace(/(^|[\s\-\/])([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase()),COMP=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),CL=c=>['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+c.slice(5)-1]+'/'+c.slice(2,4);
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function pNum(v){if(v==null||v==='')return null;if(typeof v=='number')return v;let s=String(v).replace(/[R$\s\u00a0]/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s.replace(/[^\d.\-]/g,''));return isNaN(n)?null:n}
-function pDate(v){if(v==null||v==='')return null;if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate());if(typeof v=='number'){const o=XLSX.SSF.parse_date_code(Math.floor(v+1e-6));return o?new Date(o.y,o.m-1,o.d):null}
- const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1])}m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+const MES={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11,feb:1,apr:3,may:4,aug:7,sep:8,oct:9,dec:11};
+const mkD=(y,m,d)=>{const x=new Date(y,m,d);return x.getFullYear()==y&&x.getMonth()==m&&x.getDate()==d?x:null};
+/* Datas são tratadas como “data de calendário” (sem hora/fuso): serial do Excel, texto dd/mm/aaaa ou aaaa-mm-dd (ignora T..Z) e objetos Date.
+   Date à meia-noite UTC (ex.: 2026-10-31T00:00:00Z) usa os componentes UTC — evita recuar 1 dia em UTC−3. */
+function pDate(v){if(v==null||v==='')return null;
+ if(v instanceof Date){if(isNaN(v))return null;const utc0=!(v.getUTCHours()||v.getUTCMinutes()||v.getUTCSeconds()||v.getUTCMilliseconds())&&(v.getHours()||v.getMinutes());return utc0?mkD(v.getUTCFullYear(),v.getUTCMonth(),v.getUTCDate()):mkD(v.getFullYear(),v.getMonth(),v.getDate())}
+ if(typeof v=='number'){if(!(v>0))return null;const o=XLSX.SSF.parse_date_code(Math.floor(v+1e-6));return o&&o.y>=1990&&o.y<=2100?mkD(o.y,o.m-1,o.d):null}
+ const s=String(v).trim();if(/^\d{5}(\.\d+)?$/.test(s))return pDate(+s);
+ let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?!\d)/);if(m){let y=+m[3];if(y<100)y+=2000;return mkD(y,+m[2]-1,+m[1])}
+ m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return mkD(+m[1],+m[2]-1,+m[3]);
+ m=noAcc(s).toLowerCase().match(/^(\d{1,2})[\/\-. ]+([a-z]{3})[a-z]*\.?[\/\-. ]+(\d{2,4})/);if(m&&MES[m[2]]!=null){let y=+m[3];if(y<100)y+=2000;return mkD(y,MES[m[2]],+m[1])}
+ return null}
 function nV(v){let s=noAcc(v).toUpperCase().replace(/\d+([.,]\d+)?\s*%/g,'').replace(/\bE\b/g,'/').replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim().replace(/[\/\-]+$/,'').trim().replace(/VITALLAB/g,'VITALAB');return s||'SEM VENDEDOR'}
 const G=(a,f)=>{const m=new Map();a.forEach(r=>{const k=f(r);m.has(k)?m.get(k).push(r):m.set(k,[r])});return m};
 let RAW=[],ST={bad:0,n:0},SEL=new Map(),FOCO=null,RK='cli',CH={},TV=[];
@@ -169,13 +179,14 @@ async function read(f){msg('Lendo '+f.name+'…');await new Promise(r=>setTimeou
   const wb=XLSX.read(buf,{type:'array',sheets:nm}),rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:null}),out=build(rows);
   if(!out.length)return msg('Não localizei linhas com CLIENTE, VENCIMENTO e VALOR na aba “'+nm+'”.',1);
   RAW=out;const lq=RAW.filter(r=>r.liq).map(r=>+r.liq);$('#fRef').value=ymd(lq.length?new Date(Math.max(...lq)):new Date());
-  $('#home').classList.add('hide');$('#appShell').classList.remove('hide');$('#app').classList.remove('hide');$('#info').innerHTML='<b>'+esc(f.name)+'</b> · aba '+esc(nm)+' · '+NUM(RAW.length)+' títulos';initF();render()}catch(e){console.error(e);msg('Falha ao ler o arquivo: '+e.message,1)}}
+  $('#home').classList.add('hide');$('#appShell').classList.remove('hide');$('#app').classList.remove('hide');$('#info').innerHTML='<b>'+esc(f.name)+'</b> · aba '+esc(nm)+' · '+NUM(RAW.length)+' títulos'+(ST.bad?' · <span class="err">'+NUM(ST.bad)+' linha(s) descartada(s)</span>':'')+(ST.liqBad?' · <span class="err">'+NUM(ST.liqBad)+' liquidação(ões) ilegível(is)</span>':'')+(ST.bad||ST.liqBad?' · detalhes em “Premissas”':'');initF();render()}catch(e){console.error(e);msg('Falha ao ler o arquivo: '+e.message,1)}}
 function build(rows){const W={CLIENTE:'cli',VENCIMENTO:'venc',DESCRICAO:'desc',VALOR:'val',LIQUIDACAO:'liq',VENDEDOR:'vend',EMPRESA:'emp'};let h=-1,m={};
  for(let i=0;i<Math.min(rows.length,30)&&h<0;i++){const x={};(rows[i]||[]).forEach((c,j)=>{const k=key(c);if(W[k])x[W[k]]=j});if(x.cli!=null&&x.venc!=null&&x.val!=null){h=i;m=x}}
- if(h<0)return[];const o=[];let bad=0;
- for(const r of rows.slice(h+1)){if(!r||r.every(c=>c==null||c===''))continue;const venc=pDate(r[m.venc]),val=pNum(r[m.val]);if(!r[m.cli]||!venc||val==null){bad++;continue}
+ if(h<0)return[];const o=[],rej=[];let bad=0,liqBad=0;
+ for(const [ix,r] of rows.slice(h+1).entries()){if(!r||r.every(c=>c==null||c===''))continue;const venc=pDate(r[m.venc]),val=pNum(r[m.val]);if(!r[m.cli]||!venc||val==null){bad++;rej.push({l:h+ix+2,w:!r[m.cli]?'sem cliente':!venc?'vencimento inválido ('+String(r[m.venc]??'vazio')+')':'valor inválido ('+String(r[m.val]??'vazio')+')'});continue}
+  if(m.liq!=null&&r[m.liq]!=null&&r[m.liq]!==''&&!pDate(r[m.liq])){liqBad++;rej.push({l:h+ix+2,w:'liquidação ilegível ('+String(r[m.liq])+') — título tratado como em aberto',aviso:1})}
   o.push({cli:tc(String(r[m.cli]).trim()),ck:key(r[m.cli]),venc,val,liq:m.liq!=null?pDate(r[m.liq]):null,desc:String(r[m.desc]??'').trim(),vend:nV(m.vend!=null?r[m.vend]:''),emp:String(r[m.emp]??'—').trim().toUpperCase()||'—'})}
- ST={bad,n:o.length+bad};return o}
+ ST={bad,liqBad,rej,n:o.length+bad};if(rej.length)console.warn('Linhas com problema na leitura:',rej);return o}
 /* filtros */
 const TOL=()=>0;
 function initF(){const cs=[...new Set(RAW.flatMap(r=>[COMP(r.venc),r.liq?COMP(r.liq):null]).filter(Boolean))].sort(),fl=(s,a,l)=>$(s).innerHTML=a.map(v=>`<option value="${esc(v)}">${esc(l?l(v):v)}</option>`).join('');
@@ -219,8 +230,14 @@ function render(){const R=current();CUR=R;$('#sug').classList.contains('hide')||
   kp('Pontualidade',PCT(a.pont),'títulos pagos até o vencimento','var(--gr)'),
   kp('Clientes com atraso',NUM(a.cliI),PCT(a.cli?a.cliI/a.cli:0)+' da base · score A:'+(sc.A||0)+' B:'+(sc.B||0)+' C:'+(sc.C||0)+' D:'+(sc.D||0)+' E:'+(sc.E||0)),
   kp('Atraso > 30 dias',BRL(a.v30),PCT(a.v?a.v30/a.v:0)+' do faturamento','var(--rd)'),
-  kp('Em aberto',BRL(a.ab),a.ab?'títulos sem liquidação':'toda a base está liquidada · antecipados: '+NUM(a.ant),'var(--b2)')].join('');
+  kp('Em aberto',BRL(a.ab),a.ab?'títulos sem liquidação':'toda a base está liquidada · antecipados: '+NUM(a.ant),'var(--b2)')].concat(clienteFiltrado()?cardsCliente(R,a,kp):[]).join('');
  insights(R,a,C);charts(R,a);charts2(R);heat(R,C);detail(R);rank(R);tit(R);prem(R,a)}
+/* cards extras: só aparecem quando há filtro por cliente */
+function clienteFiltrado(){return SEL.size>0||$('#qCli').value.trim()!==''}
+function metCli(R){const ap=R.filter(r=>r.eff!=null),n=ap.length,c=l=>ap.filter(r=>r.eff>l).length,nd=ap.filter(r=>r.eff>0),qd=nd.length;
+ return{n,q30:c(30),q60:c(60),q90:c(90),qd,md:qd?nd.reduce((x,r)=>x+r.eff,0)/qd:0,p:x=>n?x/n:0}}
+function cardsCliente(R,a,kp){const M=metCli(R),f=(l,q)=>kp('Títulos > '+l+' dias de atraso',NUM(q),PCT(M.p(q))+' dos '+NUM(M.n)+' títulos apurados',l>=90?'var(--rd)':l>=60?'#e07a2f':'var(--am)');
+ return[f(30,M.q30),f(60,M.q60),f(90,M.q90),kp('Sem pagamento no dia do vencimento','Média '+NUM(M.md,1)+' dias',PCT(M.p(M.qd))+' dos títulos ('+NUM(M.qd)+' de '+NUM(M.n)+') · média de dias de atraso desses títulos','var(--am)')]}
 function insights(R,a,C){const o=[],S=[...C].sort((x,y)=>y.vi-x.vi),top5=S.slice(0,5).reduce((s,c)=>s+c.vi,0),cm=[...G(R,r=>r.comp)].map(([k,rs])=>({k,...agg(rs)})).sort((x,y)=>x.k<y.k?-1:1),re=cm.slice(-7),pr=cm.slice(-14,-7),mg=x=>x.reduce((s,c)=>s+c.vi,0)/(x.reduce((s,c)=>s+c.v,0)||1);
  o.push(['crit','Margem de '+PCT(a.margem),BRL(a.vi)+' de '+BRL(a.v)+' foram pagos com atraso ou seguem vencidos em aberto — capital de giro financiado involuntariamente.']);
  if(S[0]&&S[0].vi)o.push([top5/(a.vi||1)>=.6?'crit':'','Concentração de risco','Os 5 maiores respondem por '+PCT(top5/(a.vi||1))+' do valor em atraso. O maior é '+esc(S[0].nome)+' ('+BRL(S[0].vi)+', score '+S[0].sc+').']);
@@ -264,8 +281,11 @@ function rank(R){let L;const mk=(k,nome,a)=>{const tr=trd(a.d);return{k,c:[[esc(
  tbl(t,['Nome','Títulos','Valor total','Valor em atraso','Margem','Prazo médio atrasos (d)','Prazo pond. (d)','Mediana (d)','Pontualidade','Recorrência','Tendência','Score'],A.map(a=>mk(a.k,a.nome,a)))}
 function tit(R){const q=key($('#qT').value),s=$('#fSit').value;TV=R.filter(r=>(!q||key(r.cli+r.desc).includes(q))&&(!s||r.sit==s)).sort((a,b)=>a.cli.localeCompare(b.cli,'pt-BR')||a.venc-b.venc);$('#tI').textContent=NUM(TV.length)+' de '+NUM(R.length)+' títulos';
  $('#tT').innerHTML='<thead><tr>'+['Cliente','Vencimento','Liquidação','Descrição','Valor','Vendedor','Empresa','Dias (liq.−venc.)','Dias em atraso','Situação'].map(c=>`<th style="cursor:default">${c}</th>`).join('')+'</tr></thead><tbody>'+TV.slice(0,600).map(r=>`<tr><td>${esc(r.cli)}</td><td>${fmtD(r.venc)}</td><td>${fmtD(r.liq)}</td><td style="white-space:normal;text-align:left;max-width:260px">${esc(r.desc||'—')}</td><td>${BRL(r.val)}</td><td>${esc(r.vend)}</td><td>${esc(r.emp)}</td><td>${r.dias==null?'—':r.dias}</td><td>${r.eff==null?'—':r.eff}</td><td><span class="tag ${r.sit.includes('vencido')||r.sit.includes('com atraso')?'bd':r.sit.includes('prazo')?'ok':'nt'}">${r.sit}</span></td></tr>`).join('')+'</tbody>'}
-function xl(){if(!TV.length)return alert('Nenhum título para exportar.');const ws=XLSX.utils.aoa_to_sheet([['CLIENTE','COMPETÊNCIA','VENCIMENTO','LIQUIDAÇÃO','DESCRIÇÃO','VALOR','VENDEDOR','EMPRESA','DIAS (LIQ−VENC)','DIAS EM ATRASO','SITUAÇÃO'],...TV.map(r=>[r.cli,r.comp,r.venc,r.liq,r.desc,r.val,r.vend,r.emp,r.dias??'',r.eff??'',r.sit])],{cellDates:true});ws['!cols']=[30,11,12,12,40,14,22,13,12,12,20].map(w=>({wch:w}));ws['!autofilter']={ref:ws['!ref']};
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Títulos');dl('titulos_inadimplencia.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx',cellDates:true}))}
+function indSheet(){const R=CUR,a=agg(R),I=[['Faturamento no recorte',a.v,'R$ #,##0.00',NUM(a.n)+' títulos · '+NUM(a.cli)+' clientes'],['Em atraso',a.vi,'R$ #,##0.00','pago '+BRL(a.va)+' + em aberto vencido '+BRL(a.vab)],['Margem de inadimplência',a.margem,'0.0%','do faturamento'],['Prazo médio dos atrasos (dias)',a.prazo,'0.0','só títulos em atraso'],['Prazo ponderado (dias)',a.pond,'0.0','todos os títulos apurados'],['Mediana (dias)',a.med,'0',''],['Pontualidade',a.pont,'0.0%','títulos pagos até o vencimento'],['Clientes com atraso',a.cliI,'0',PCT(a.cli?a.cliI/a.cli:0)+' da base'],['Atraso > 30 dias (valor)',a.v30,'R$ #,##0.00',PCT(a.v?a.v30/a.v:0)+' do faturamento'],['Em aberto (valor)',a.ab,'R$ #,##0.00','títulos sem liquidação']];
+ if(clienteFiltrado()){const M=metCli(R);[[30,M.q30],[60,M.q60],[90,M.q90]].forEach(([l,q])=>{I.push(['Títulos > '+l+' dias de atraso (quantidade)',q,'0','']);I.push(['Títulos > '+l+' dias de atraso (%)',M.p(q),'0.0%','sobre '+NUM(M.n)+' títulos apurados'])});I.push(['Sem pagamento no dia do vencimento (média de dias de atraso)',M.md,'0.0','média dos títulos pagos após o vencimento ou em aberto vencidos']);I.push(['Sem pagamento no dia do vencimento (quantidade)',M.qd,'0','']);I.push(['Sem pagamento no dia do vencimento (%)',M.p(M.qd),'0.0%','sobre '+NUM(M.n)+' títulos apurados'])}
+ const w=XLSX.utils.aoa_to_sheet([['INDICADOR','VALOR','DETALHE'],...I.map(x=>[x[0],x[1],x[3]])]);I.forEach((x,i)=>{w['B'+(i+2)].z=x[2]});w['!cols']=[{wch:58},{wch:20},{wch:60}];return w}
+function xl(){if(!TV.length)return alert('Nenhum título para exportar.');const ws=XLSX.utils.aoa_to_sheet([['CLIENTE','COMPETÊNCIA','VENCIMENTO','LIQUIDAÇÃO','DESCRIÇÃO','VALOR','VENDEDOR','EMPRESA','DIAS (LIQ−VENC)','DIAS EM ATRASO','SITUAÇÃO','FAIXA DE ATRASO','SEM PAGAMENTO NO DIA DO VENCIMENTO'],...TV.map(r=>[r.cli,r.comp,r.venc,r.liq,r.desc,r.val,r.vend,r.emp,r.dias??'',r.eff??'',r.sit,r.eff==null?'':r.eff>90?'> 90 dias':r.eff>60?'61–90 dias':r.eff>30?'31–60 dias':r.eff>0?'1–30 dias':'No prazo',r.eff==null?'':r.eff>0?'Sim':'Não'])],{cellDates:true});ws['!cols']=[30,11,12,12,40,14,22,13,12,12,20,16,22].map(w=>({wch:w}));ws['!autofilter']={ref:ws['!ref']};
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Títulos');XLSX.utils.book_append_sheet(wb,indSheet(),'Indicadores');dl('titulos_inadimplencia.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx',cellDates:true}))}
 function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)return alert('O módulo de PDF não carregou. Verifique a conexão.');const R=CUR;if(!R.length)return alert('Nenhum registro no recorte.');
  const d=new J({orientation:'landscape',unit:'mm',format:'a4'}),W=297,m=12,bl=[14,58,92],go=[201,135,31],ink=[26,37,64],mu=[102,116,143],pl=[244,246,250],rd=[179,38,30],a=agg(R);
  const tx=(s,x,y,z,c,b)=>{d.setFont('helvetica',b?'bold':'normal');d.setFontSize(z||8);d.setTextColor(...(c||ink));d.text(String(s),x,y)};
@@ -276,8 +296,9 @@ function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)return alert('O m�
  const ft='Filtros: '+$('#fEmp').value+' · '+$('#fVend').value+' · competência por '+($('#fBase').value=='liq'?'liquidação':'vencimento')+' '+$('#fDe').selectedOptions[0].text+' a '+$('#fAte').selectedOptions[0].text+' · referência '+fmtD(new Date($('#fRef').value+'T00:00'))+(SEL.size?' · clientes: '+[...SEL.values()].join(', '):'');
  hd('Relatório executivo de inadimplência histórica e comportamental',new Date().toLocaleDateString('pt-BR'));tx('Visão consolidada do recorte',m,31,12.5,ink,1);tx(ft.length>200?ft.slice(0,197)+'…':ft,m,36.5,6.6,mu);
  const g=4,cw=(W-2*m-3*g)/4;cd(m,40,cw,'FATURAMENTO',BRL(a.v),NUM(a.n)+' títulos · '+NUM(a.cli)+' clientes');cd(m+cw+g,40,cw,'VALOR EM ATRASO',BRL(a.vi),NUM(a.ni)+' títulos',rd);cd(m+2*(cw+g),40,cw,'MARGEM DE INADIMPLÊNCIA',PCT(a.margem),'do faturamento',go);cd(m+3*(cw+g),40,cw,'PRAZO PONDERADO',NUM(a.pond,1)+' dia(s)','pontualidade '+PCT(a.pont),go);
+ if(clienteFiltrado()){const M=metCli(R),sb=q=>PCT(M.p(q))+' dos '+NUM(M.n)+' títulos apurados';cd(m,64,cw,'TÍTULOS > 30 DIAS',NUM(M.q30),sb(M.q30),go);cd(m+cw+g,64,cw,'TÍTULOS > 60 DIAS',NUM(M.q60),sb(M.q60),[224,122,47]);cd(m+2*(cw+g),64,cw,'TÍTULOS > 90 DIAS',NUM(M.q90),sb(M.q90),rd);cd(m+3*(cw+g),64,cw,'SEM PGTO. NO DIA DO VENCIMENTO','Média '+NUM(M.md,1)+' d',PCT(M.p(M.qd))+' ('+NUM(M.qd)+' de '+NUM(M.n)+' títulos)',go)}
  const C=[...G(R,r=>r.ck)].map(([k,rs])=>({nome:rs[0].cli,...beh(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,10),V=[...G(R,r=>r.vend)].map(([k,rs])=>({nome:k,...beh(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,6);
- let y=T(66,['Clientes (maior valor em atraso)','Títulos','Valor total','Valor em atraso','Margem','Prazo pond. (d)','Pontualidade','Tendência','Score'],C.map(c=>[nm(c.nome),c.n,BRL(c.v),BRL(c.vi),PCT(c.margem),NUM(c.pond,1),PCT(c.pont),tr(c.d),c.sc]));
+ let y=T(clienteFiltrado()?90:66,['Clientes (maior valor em atraso)','Títulos','Valor total','Valor em atraso','Margem','Prazo pond. (d)','Pontualidade','Tendência','Score'],C.map(c=>[nm(c.nome),c.n,BRL(c.v),BRL(c.vi),PCT(c.margem),NUM(c.pond,1),PCT(c.pont),tr(c.d),c.sc]));
  T(y,['Vendedores','Títulos','Valor total','Valor em atraso','Margem','Prazo pond. (d)','Pontualidade','Tendência','Score'],V.map(c=>[c.nome,c.n,BRL(c.v),BRL(c.vi),PCT(c.margem),NUM(c.pond,1),PCT(c.pont),tr(c.d),c.sc]));
  d.addPage();hd('Evolução mensal e hábitos de pagamento','Página 2');const cm=[...G(R,r=>r.comp)].map(([k,rs])=>({k,...agg(rs)})).sort((x,y)=>x.k<y.k?-1:1).slice(-12);
  y=T(30,['Competência',...cm.map(x=>CL(x.k))],[['Títulos',...cm.map(x=>NUM(x.n))],['Faturamento (R$)',...cm.map(x=>NUM(x.v))],['Em atraso (R$)',...cm.map(x=>NUM(x.vi))],['Margem',...cm.map(x=>PCT(x.margem))],['Prazo pond. (d)',...cm.map(x=>NUM(x.pond,1))]]);
@@ -288,11 +309,14 @@ function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)return alert('O m�
 function prem(R,a){const ab=R.filter(r=>!r.liq);$('#pr').innerHTML=[
  ['Fonte','Aba Receitas · '+NUM(ST.n-ST.bad)+' de '+NUM(ST.n)+' linhas aproveitadas ('+NUM(ST.bad)+' sem cliente, vencimento ou valor).'],
  ['Dias de atraso','Liquidação − vencimento. Antecipados (negativos) contam como 0 no atraso, mas são tabulados à parte. Título em aberto e vencido tem atraso corrente = data de referência − vencimento (hoje: '+NUM(ab.filter(r=>r.eff!=null).length)+' no recorte).'],
+ ['Linhas com problema',ST.rej.length?'<b>'+NUM(ST.bad)+'</b> descartada(s) e <b>'+NUM(ST.liqBad)+'</b> com liquidação ilegível. Linha da planilha → motivo: '+ST.rej.slice(0,15).map(x=>x.l+' → '+esc(x.w)).join(' · ')+(ST.rej.length>15?' · … (lista completa no console do navegador)':''):'Nenhuma: todas as linhas foram lidas.'],
+ ['Datas','Tratadas como data de calendário, sem hora e sem fuso (serial do Excel, dd/mm/aaaa, aaaa-mm-dd, “31-out-26”). Datas em UTC meia-noite não recuam um dia.'],
  ['Tolerância','<b>Sem tolerância</b>: qualquer atraso de 1 dia ou mais caracteriza inadimplência, tanto no histórico quanto no comportamento.'],
  ['Competência','Mês da liquidação (títulos em aberto usam o vencimento) ou, à escolha, mês do vencimento.'],
  ['Margem','(Pago com atraso + em aberto vencido) ÷ faturamento do recorte = <b>'+PCT(a.margem)+'</b>.'],
  ['Prazo médio × ponderado','Médio: dias médios só dos títulos inadimplentes. Ponderado: dias ponderados pelo valor de <i>todos</i> os títulos apurados — base do score.'],
  ['Score A–E','Prazo ponderado do cliente: A ≤ 3 d · B ≤ 10 · C ≤ 30 · D ≤ 60 · E > 60.'],
  ['Recorrência e tendência','Recorrência: % dos meses ativos com ao menos um título inadimplente. Tendência: prazo ponderado dos últimos 6 meses ativos do cliente vs. os 6 anteriores (±3 dias = estável).'],
+ ['Cards por cliente','Exibidos apenas com filtro de cliente. Títulos &gt; 30/60/90 dias: quantidade e % sobre os títulos apurados (pagos + em aberto vencidos), faixas cumulativas. Sem pagamento no dia do vencimento: títulos pagos após o vencimento ou em aberto vencidos; mostra a média de dias de atraso e o % sobre os apurados.'],
  ['Vendedores','Grafias normalizadas (acentos, % de comissão, “e” → “/”); vazios = SEM VENDEDOR.']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}
 </script></body></html>
