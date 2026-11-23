@@ -1,866 +1,298 @@
-<!doctype html>
-<html lang="pt-BR" data-theme="light">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>GRUPO LABMEDIC - Painel Histórico de Inadimplência</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>
-(function(){
-  const saved=localStorage.getItem('inad-theme');
-  const preferred=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
-  document.documentElement.dataset.theme=saved||preferred;
-})();
-</script>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Grupo Labmedic – Inadimplência histórica e comportamental</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
-:root{
-  --ink:#0b1220; --ink-2:#132033; --panel:#ffffff; --bg:#f4f6fa;
-  --line:#e3e8f0; --txt:#1a2540; --muted:#66748f;
-  --brand:#0e3a5c; --brand-2:#14618f; --amber:#c9871f; --amber-soft:#fdf3e2;
-  --red:#b3261e; --red-soft:#fbeceb; --green:#11705a; --green-soft:#e8f4f0;
-  --r:14px; --shadow:0 1px 2px rgba(16,29,54,.06),0 12px 28px -18px rgba(16,29,54,.35);
-  --field:#ffffff; --table-head:#fafbfd; --row-hover:#f7f9fc; --soft:#eef1f6;
-  --insight:#fcfdff; --chart-grid:#eef1f6; --chart-muted:#66748f; --chart-title:#1a2540;
-  --chart-pale:#dbe5ef; --donut-border:#ffffff;
-  --ins-txt:#3a486b; --amber-txt:#8d5c05; --grey-soft:#eef1f6;
-}
-html[data-theme="dark"]{
-  --ink:#07101d; --ink-2:#0b1726; --panel:#121d2b; --bg:#09121f;
-  --line:#33465c; --txt:#f7fafd; --muted:#c3d0df;
-  --brand:#61acd2; --brand-2:#55b4df; --amber:#e6ad4e; --amber-soft:#3b2c14;
-  --red:#ff8d86; --red-soft:#3d2022; --green:#62c9aa; --green-soft:#17372f;
-  --shadow:0 1px 2px rgba(0,0,0,.22),0 16px 34px -22px rgba(0,0,0,.75);
-  --field:#0d1826; --table-head:#0d1826; --row-hover:#172536; --soft:#1c2a3a;
-  --insight:#101c2a; --chart-grid:#2f4156; --chart-muted:#d0dbe7; --chart-title:#ffffff;
-  --ins-txt:#dfe8f2; --amber-txt:#f3c677; --grey-soft:#26364a;
-  --chart-pale:#34495e; --donut-border:#121d2b;
-}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-h1,h2,h3,.num{font-family:Sora,Manrope,sans-serif}
-a{color:var(--brand-2)}
-.wrap{max-width:1360px;margin:0 auto;padding:0 24px 72px}
-header.top{background:linear-gradient(135deg,var(--ink) 0%,var(--ink-2) 55%,#134b6e 100%);color:#fff;padding:28px 0 84px}
-header.top .wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between}
-.brand{display:flex;gap:14px;align-items:center}
-.mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(140deg,var(--amber),#e8b45c);display:grid;place-items:center;color:#2a1a02;font-weight:700;font-family:Sora}
-.brand h1{margin:0;font-size:20px;letter-spacing:-.2px}
-.brand p{margin:2px 0 0;font-size:13px;color:#a9c3da}
-.hbtns{display:flex;gap:10px;flex-wrap:wrap}
-.btn{border:0;cursor:pointer;font:600 14px Manrope;padding:11px 16px;border-radius:10px;background:var(--amber);color:#2a1a02;transition:.15s}
-.btn:hover{filter:brightness(1.06)}
-.btn.ghost{background:rgba(255,255,255,.1);color:#eaf2f9;border:1px solid rgba(255,255,255,.22)}
-.theme-btn{display:inline-flex;align-items:center;gap:8px;min-width:112px;justify-content:center}
-.theme-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.btn.sm{padding:8px 12px;font-size:13px}
-main{margin-top:-64px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
-.pad{padding:22px}
-.upload-panel{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:28px;align-items:center;min-height:300px;padding:30px 34px;background:linear-gradient(135deg,var(--panel) 0%,var(--insight) 62%,var(--amber-soft) 100%)}
-.upload-copy{position:relative;z-index:1;max-width:590px}
-.upload-copy h2{margin:0 0 8px;font-size:24px;letter-spacing:-.4px}
-.upload-copy p{margin:0 0 20px;color:var(--muted);max-width:560px}
-.upload-copy strong{color:var(--txt)}
-.upload-art{position:relative;min-height:220px;display:grid;place-items:center;isolation:isolate}
-.upload-art:before,.upload-art:after{content:"";position:absolute;border-radius:50%;filter:blur(1px);z-index:-1}
-.upload-art:before{width:190px;height:190px;background:color-mix(in srgb,var(--brand-2) 14%,transparent);animation:floatOrb 7s ease-in-out infinite}
-.upload-art:after{width:110px;height:110px;right:12%;bottom:5%;background:color-mix(in srgb,var(--amber) 18%,transparent);animation:floatOrb 5s ease-in-out -1.5s infinite reverse}
-.upload-illustration{width:min(100%,310px);height:auto;overflow:visible;filter:drop-shadow(0 18px 18px rgba(14,58,92,.12));animation:floatCard 5.5s ease-in-out infinite}
-.upload-illustration .sheet{transform-origin:160px 126px;animation:sheetPulse 4s ease-in-out infinite}
-.upload-illustration .spark{transform-origin:center;animation:sparkle 2.8s ease-in-out infinite}
-.upload-illustration .spark:nth-of-type(2){animation-delay:-.8s}.upload-illustration .spark:nth-of-type(3){animation-delay:-1.6s}
-@keyframes floatCard{0%,100%{transform:translateY(2px) rotate(-1deg)}50%{transform:translateY(-9px) rotate(1deg)}}
-@keyframes floatOrb{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(8px,-10px) scale(1.08);opacity:1}}
-@keyframes sheetPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
-@keyframes sparkle{0%,100%{opacity:.35;transform:scale(.75) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(45deg)}}
-@media(max-width:760px){.upload-panel{grid-template-columns:1fr;padding:26px 22px;gap:8px;text-align:center}.upload-copy{margin:auto}.upload-copy p{margin-left:auto;margin-right:auto}.upload-art{min-height:190px;order:-1}.upload-illustration{width:min(92%,280px)}}
-@media(prefers-reduced-motion:reduce){.upload-illustration,.upload-art:before,.upload-art:after,.upload-illustration .sheet,.upload-illustration .spark{animation:none}}
-.progress-wrap{position:absolute;inset:0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(2px);text-align:center;padding:24px}
-.progress-wrap.show{display:flex}
-.progress-ring{position:relative;width:118px;height:118px}
-.progress-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
-.progress-ring .ring-bg{fill:none;stroke:var(--soft);stroke-width:8}
-.progress-ring .ring-fg{fill:none;stroke:var(--amber);stroke-width:8;stroke-linecap:round;stroke-dasharray:326.73;stroke-dashoffset:326.73;transition:stroke-dashoffset .2s ease}
-.progress-pct{position:absolute;inset:0;display:grid;place-items:center;font:700 21px Sora;color:var(--txt)}
-.progress-label{font:600 13.5px Manrope;color:var(--muted);max-width:280px}
-.progress-file{font:700 13.5px Manrope;color:var(--txt);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.filters{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-top:18px}
-.f{display:flex;flex-direction:column;gap:6px}
-.f label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-select,input[type=number],input[type=month],input[type=search]{font:500 14px Manrope;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--field);color:var(--txt);min-width:150px}
-.chk{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;padding-bottom:9px}
-.grid{display:grid;gap:18px}
-.kpis{grid-template-columns:repeat(4,1fr);margin-top:18px}
-@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.kpis{grid-template-columns:1fr}}
-.kpi{padding:18px}
-.kpi .lab{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-.kpi .val{font:700 27px/1.15 Sora;margin:8px 0 4px;letter-spacing:-.5px}
-.kpi .sub{font-size:12.5px;color:var(--muted)}
-.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px}
-.t-red{background:var(--red-soft);color:var(--red)} .t-amber{background:var(--amber-soft);color:var(--amber-txt)}
-.t-green{background:var(--green-soft);color:var(--green)} .t-grey{background:var(--grey-soft);color:var(--muted)}
-section{margin-top:34px}
-.sec-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 14px}
-.sec-h h2{margin:0;font-size:19px;letter-spacing:-.2px}
-.sec-h span{font-size:13px;color:var(--muted)}
-.two{grid-template-columns:1.55fr 1fr}
-.two-eq{grid-template-columns:1fr 1fr}
-@media(max-width:980px){.two,.two-eq{grid-template-columns:1fr}}
-.chart-box{position:relative;height:320px}
-.chart-box.tall{height:390px}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font:700 11px Manrope;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--table-head);position:sticky;top:0;cursor:pointer}
-th:first-child,td:first-child{text-align:left}
-#tCli th:nth-child(2),#tCli td:nth-child(2),#tVend th:nth-child(2),#tVend td:nth-child(2){text-align:left}
-tbody tr:hover{background:var(--row-hover)}
-.scroll{max-height:460px;overflow:auto;border-radius:var(--r)}
-.bar{position:relative;display:block;height:6px;border-radius:99px;background:var(--soft);margin-top:5px}
-.bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--brand-2)}
-.insights{display:grid;gap:12px}
-.ins{display:flex;gap:12px;padding:14px;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;background:var(--insight)}
-.ins b{display:block;font-size:13px;margin-bottom:2px}
-.ins p{margin:0;font-size:13.5px;color:var(--ins-txt)}
-.ins.crit{border-left-color:var(--red)} .ins.ok{border-left-color:var(--green)}
-.prem{font-size:13.5px}
-.prem td:first-child{font-weight:700;width:230px;white-space:normal}
-.prem td{white-space:normal;text-align:left}
-footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:40px}
-.hide{display:none!important}
-.err{background:var(--red-soft);color:var(--red);padding:12px 14px;border-radius:10px;font-weight:600;font-size:13.5px;margin-top:14px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:10px}
-.cli-pick{position:relative}
-.cli-sug{position:absolute;z-index:40;top:calc(100% + 6px);left:0;width:340px;max-height:270px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px}
-.cli-sug .opt{display:flex;gap:9px;align-items:center;padding:7px 9px;border-radius:8px;cursor:pointer;font:500 13.5px Manrope;text-transform:none;letter-spacing:normal;color:var(--txt)}
-.cli-sug .opt:hover{background:var(--row-hover)}
-.cli-sug .opt input{margin:0;accent-color:var(--brand-2)}
-.cli-sug .opt .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cli-sug .meta{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
-.cli-sug .empty,.cli-sug .more{padding:9px 10px;color:var(--muted);font-size:12.5px}
-.chipbar{margin-top:18px;padding:13px 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.chipbar .cap{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.chip{display:inline-flex;align-items:center;gap:8px;background:var(--soft);border:1px solid var(--line);border-radius:99px;padding:6px 10px 6px 12px;font-size:13px;font-weight:600}
-.chip button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
-.chip button:hover{color:var(--red)}
-html[data-theme="dark"] body{font-weight:500}
-html[data-theme="dark"] th,html[data-theme="dark"] .kpi .lab,html[data-theme="dark"] .f label{color:#d6e1ec}
-html[data-theme="dark"] td{color:var(--txt)}
-.dot{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:5px}
-</style>
-</head>
-<body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand">
-      <div class="mark">GL</div>
-      <div><h1>GRUPO LABMEDIC - Painel Histórico de Inadimplência</h1><p>Análise da aba <b>Receitas</b> — títulos, competências, carteiras e clientes</p></div>
+:root{--bg:#f4f6fa;--pn:#fff;--ln:#e3e8f0;--tx:#1a2540;--mu:#66748f;--br:#0e3a5c;--b2:#14618f;--am:#c9871f;--rd:#b3261e;--gr:#11705a;--sf:#eef1f6;--hd:#0b1220;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#09121f;--pn:#121d2b;--ln:#33465c;--tx:#f7fafd;--mu:#c3d0df;--br:#61acd2;--b2:#55b4df;--am:#e6ad4e;--rd:#ff8d86;--gr:#62c9aa;--sf:#1c2a3a;--hd:#07101d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#09121f;--pn:#121d2b;--ln:#33465c;--tx:#f7fafd;--mu:#c3d0df;--br:#61acd2;--b2:#55b4df;--am:#e6ad4e;--rd:#ff8d86;--gr:#62c9aa;--sf:#1c2a3a;--hd:#07101d;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14.5px/1.5 Manrope,system-ui,sans-serif}h1,h2,h3,.v{font-family:Sora,Manrope,sans-serif}
+.w{max-width:1380px;margin:0 auto;padding:0 20px 60px}header{background:linear-gradient(135deg,var(--hd),#134b6e);color:#fff;padding:22px 0 76px}header .w{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;padding-bottom:0}
+header h1{margin:0;font-size:19px}header p{margin:2px 0 0;font-size:12.5px;color:#a9c3da}main{margin-top:-56px}
+.btn{border:0;cursor:pointer;font:600 13.5px Manrope;padding:10px 15px;border-radius:10px;background:var(--am);color:#2a1a02}.btn.g{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}.btn.s{background:var(--sf);color:var(--tx);border:1px solid var(--ln);padding:7px 11px;font-size:12.5px}
+.c{background:var(--pn);border:1px solid var(--ln);border-radius:14px;box-shadow:0 12px 28px -20px rgba(16,29,54,.4)}.p{padding:18px}
+.f{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}.f>div{display:flex;flex-direction:column;gap:5px;position:relative}label.l{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
+select,input{font:500 13.5px Manrope;padding:8px 10px;border:1px solid var(--ln);border-radius:9px;background:var(--bg);color:var(--tx);min-width:130px}
+.k{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}@media(max-width:1000px){.k{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr!important}}@media(max-width:560px){.k{grid-template-columns:1fr}}
+.kp{padding:15px;border-left:4px solid var(--c,var(--b2))}.kp .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mu)}.kp .v{font-size:22px;font-weight:700;margin:5px 0 2px}.kp .s{font-size:12px;color:var(--mu)}
+section{margin-top:28px}.h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:0 0 10px}.h h2{margin:0;font-size:18px}.h span{font-size:12.5px;color:var(--mu)}
+.g2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.cb{position:relative;height:340px}
+.sc{overflow:auto;max-height:460px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--ln);white-space:nowrap}th{position:sticky;top:0;background:var(--pn);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);cursor:pointer}th:first-child,td:first-child{text-align:left}tbody tr:hover{background:var(--sf)}tr[data-k]{cursor:pointer}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,currentColor 15%,transparent)}.sA,.ok{color:var(--gr)}.sB{color:var(--b2)}.sC,.wn{color:var(--am)}.sD{color:#e07a2f}.sE,.bd{color:var(--rd)}.nt{color:var(--mu)}
+.ins{padding:12px 14px;border:1px solid var(--ln);border-left:4px solid var(--am);border-radius:10px;margin-bottom:10px;background:var(--bg)}.ins.crit{border-left-color:var(--rd)}.ins.ok{border-left-color:var(--gr)}.ins b{display:block;font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs button.on{background:var(--b2);color:#fff;border-color:var(--b2)}
+.sug{position:absolute;top:100%;z-index:30;width:330px;max-height:260px;overflow:auto;background:var(--pn);border:1px solid var(--ln);border-radius:10px;padding:6px;margin-top:4px}.sug label{display:flex;gap:8px;padding:6px 8px;cursor:pointer;border-radius:7px}.sug label:hover{background:var(--sf)}
+.chip{display:inline-flex;gap:6px;align-items:center;background:var(--sf);border:1px solid var(--ln);border-radius:99px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600;margin:3px 4px 3px 0}.chip button{border:0;background:none;color:var(--mu);cursor:pointer}
+.hm td{text-align:center;color:#fff;font-weight:600;font-size:12px;min-width:46px}.hm td:first-child{color:var(--tx);text-align:left;font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.hide{display:none!important}.err{color:var(--rd);font-weight:600}.mu{color:var(--mu)}.pr td:first-child{font-weight:700;white-space:normal;width:220px}.pr td{white-space:normal;text-align:left}
+/* HOME (idêntica à aplicação Inadimplência Comportamental) */
+#home{--bg:#0b1620;--panel:#122230;--panel2:#18303f;--line:#24455a;--tx:#e8f1f5;--mut:#8aa6b6;--pri:#19c3a6;--warn:#f5b53d;--bad:#ef5b5b;--ok:#4ad07a;--blue:#4aa3ff;font:400 16px/normal 'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tx);margin:0}
+#home *{box-sizing:border-box;margin:0;padding:0}
+#home h1,#home h2,#home h3{font-family:'Sora',sans-serif}
+#home button{font-family:inherit;cursor:pointer}
+#home .hero p.err{color:var(--bad)}
+@media(max-width:1000px){#home .hero{grid-template-columns:1fr}}
+#home{min-height:100vh;display:flex;flex-direction:column}
+#home .top{padding:22px 40px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
+#home .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--pri),var(--blue));display:grid;place-items:center;font-weight:800;font-family:Sora;color:#06222a}
+#home .top h1{font-size:18px}
+#home .top span{color:var(--mut);font-size:13px}
+#home .hero{flex:1;display:grid;grid-template-columns:1fr 1.15fr;gap:40px;padding:40px;align-items:center}
+#home .hero h2{font-size:clamp(30px,4vw,52px);line-height:1.05;margin-bottom:18px}
+#home .hero h2 em{font-style:normal;color:var(--pri)}
+#home .hero p{color:var(--mut);font-size:17px;max-width:520px;margin-bottom:30px;line-height:1.55}
+#home .btn{background:var(--pri);color:#04211c;border:0;padding:16px 30px;border-radius:14px;font-weight:600;font-size:16px;box-shadow:0 10px 30px -8px rgba(25,195,166,.6);transition:.2s}
+#home .btn:hover{transform:translateY(-2px)}
+#home .btn.sec{background:var(--panel2);color:var(--tx);box-shadow:none;padding:10px 16px;font-size:14px;border:1px solid var(--line)}
+#home .carousel{position:relative;height:440px;border-radius:24px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+#home .slide{position:absolute;inset:0;opacity:0;transition:opacity .9s;display:flex;flex-direction:column;justify-content:flex-end}
+#home .slide.on{opacity:1}
+#home .slide svg{position:absolute;inset:0;width:100%;height:100%}
+#home .cap{position:relative;padding:26px 30px;background:linear-gradient(transparent,rgba(5,12,18,.92))}
+#home .cap h3{font-size:22px}
+#home .cap p{color:var(--mut);margin-top:4px}
+#home .dots{position:absolute;top:18px;right:20px;display:flex;gap:8px;z-index:3}
+#home .dots i{width:10px;height:10px;border-radius:50%;background:#ffffff40;cursor:pointer}
+#home .dots i.on{background:var(--pri);width:26px;border-radius:6px}
+#home .fall{animation:fall 4s linear infinite}
+#home .pulse{animation:pulse 2s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+#home .grow{animation:grow 2.4s ease-in-out infinite alternate;transform-origin:bottom;transform-box:fill-box}
+#home .spin{animation:spin 6s linear infinite;transform-origin:center;transform-box:fill-box}
+#home .draw{stroke-dasharray:900;stroke-dashoffset:900;animation:dash 3.5s ease forwards infinite}
+@keyframes fall{0%{transform:translateY(-60px) rotate(0)}100%{transform:translateY(520px) rotate(360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes grow{0%{transform:scaleY(.1)}100%{transform:scaleY(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dash{to{stroke-dashoffset:0}}
+</style></head><body>
+<section id="home">
+  <div class="top"><div class="logo">L</div><div><h1>Grupo Labmedic</h1><span>Inadimplência histórica e comportamental</span></div></div>
+  <div class="hero">
+    <div>
+      <h2>Entenda <em>quando</em> e <em>como</em> seus clientes pagam.</h2>
+      <p>Importe a planilha de receitas liquidadas e veja o comportamento de pagamento de cada cliente, vendedor e empresa a partir dos dias entre vencimento e quitação.</p>
+      <button class="btn" id="bImp2">📂 Importar planilha</button>
+      <p id="msg" style="margin-top:14px;font-size:14px"></p>
     </div>
-    <div class="hbtns">
-      <button class="btn ghost theme-btn" id="btnTheme" type="button" aria-label="Alternar tema"></button>
-      <button class="btn" id="btnPick">Importar planilha</button>
-      <input type="file" id="file" accept=".xlsx,.xlsm,.xls,.csv" class="hide" />
+    <div class="carousel" id="car">
+      <div class="dots" id="dots"></div>
+      <div class="slide on">
+        <svg viewBox="0 0 600 440"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f3442"/><stop offset="1" stop-color="#0b1620"/></linearGradient></defs><rect width="600" height="440" fill="url(#g1)"/>
+        <g transform="translate(300,180)"><circle r="110" fill="none" stroke="#24455a" stroke-width="14"/><circle r="110" fill="none" stroke="#ef5b5b" stroke-width="14" stroke-dasharray="690" stroke-dashoffset="200" class="spin" stroke-linecap="round"/>
+        <line x1="0" y1="0" x2="0" y2="-80" stroke="#e8f1f5" stroke-width="8" stroke-linecap="round" class="spin"/><line x1="0" y1="0" x2="55" y2="0" stroke="#19c3a6" stroke-width="8" stroke-linecap="round"/><circle r="10" fill="#e8f1f5"/></g>
+        <g class="pulse"><rect x="430" y="60" width="120" height="44" rx="10" fill="#ef5b5b"/><text x="490" y="89" fill="#fff" text-anchor="middle" font-family="Sora" font-weight="800" font-size="18">ATRASO</text></g></svg>
+        <div class="cap"><h3>O tempo é o indicador</h3><p>Cada dia entre o vencimento e a quitação revela um padrão.</p></div>
+      </div>
+      <div class="slide">
+        <svg viewBox="0 0 600 440"><rect width="600" height="440" fill="#0d1d28"/>
+        <g fill="#19c3a6"><rect class="grow" x="90" y="120" width="50" height="200" rx="6"/><rect class="grow" style="animation-delay:.3s" x="170" y="160" width="50" height="160" rx="6"/></g>
+        <g fill="#f5b53d"><rect class="grow" style="animation-delay:.6s" x="250" y="200" width="50" height="120" rx="6"/></g>
+        <g fill="#ef5b5b"><rect class="grow" style="animation-delay:.9s" x="330" y="230" width="50" height="90" rx="6"/><rect class="grow" style="animation-delay:1.2s" x="410" y="260" width="50" height="60" rx="6"/></g>
+        <polyline class="draw" points="80,110 160,150 240,200 320,240 400,270 480,290" fill="none" stroke="#e8f1f5" stroke-width="4"/>
+        <line x1="70" y1="322" x2="520" y2="322" stroke="#24455a" stroke-width="3"/></svg>
+        <div class="cap"><h3>Faixas de atraso</h3><p>Do pagamento antecipado ao atraso crítico acima de 90 dias.</p></div>
+      </div>
+      <div class="slide">
+        <svg viewBox="0 0 600 440"><rect width="600" height="440" fill="#101a24"/>
+        <g font-family="Sora" font-weight="800" font-size="34" fill="#f5b53d">
+        <text class="fall" x="80">R$</text><text class="fall" style="animation-delay:1s" x="200">R$</text><text class="fall" style="animation-delay:2s" x="330" fill="#ef5b5b">R$</text><text class="fall" style="animation-delay:3s" x="460">R$</text><text class="fall" style="animation-delay:1.6s" x="530" fill="#19c3a6">R$</text></g>
+        <g transform="translate(300,300)"><path d="M-120 0 h240 l-30 80 h-180z" fill="#18303f" stroke="#24455a" stroke-width="4"/><text y="50" text-anchor="middle" fill="#8aa6b6" font-family="Sora" font-size="18">CAIXA</text></g></svg>
+        <div class="cap"><h3>Impacto no fluxo de caixa</h3><p>Valores recebidos com atraso pesam no capital de giro.</p></div>
+      </div>
+      <div class="slide">
+        <svg viewBox="0 0 600 440"><rect width="600" height="440" fill="#0c1a22"/>
+        <g transform="translate(300,190)">
+        <circle r="150" fill="none" stroke="#19c3a620" stroke-width="2" class="pulse"/><circle r="100" fill="none" stroke="#19c3a640" stroke-width="2" class="pulse" style="animation-delay:.5s"/>
+        <g class="pulse"><circle cx="-90" cy="-40" r="26" fill="#4ad07a"/><text x="-90" y="-32" text-anchor="middle" font-family="Sora" font-weight="800" font-size="22" fill="#06222a">A</text></g>
+        <g class="pulse" style="animation-delay:.4s"><circle cx="0" cy="-90" r="26" fill="#19c3a6"/><text x="0" y="-82" text-anchor="middle" font-family="Sora" font-weight="800" font-size="22" fill="#06222a">B</text></g>
+        <g class="pulse" style="animation-delay:.8s"><circle cx="90" cy="-40" r="26" fill="#f5b53d"/><text x="90" y="-32" text-anchor="middle" font-family="Sora" font-weight="800" font-size="22" fill="#06222a">C</text></g>
+        <g class="pulse" style="animation-delay:1.2s"><circle cx="60" cy="60" r="26" fill="#ff8a3d"/><text x="60" y="68" text-anchor="middle" font-family="Sora" font-weight="800" font-size="22" fill="#06222a">D</text></g>
+        <g class="pulse" style="animation-delay:1.6s"><circle cx="-60" cy="60" r="26" fill="#ef5b5b"/><text x="-60" y="68" text-anchor="middle" font-family="Sora" font-weight="800" font-size="22" fill="#06222a">E</text></g></g></svg>
+        <div class="cap"><h3>Score comportamental</h3><p>Clientes classificados de A (pontual) a E (crítico).</p></div>
+      </div>
     </div>
   </div>
-</header>
-
-<main class="wrap">
-  <div class="card upload-panel" id="loader">
-    <div class="upload-copy">
-      <h2>Transforme dados em decisões</h2>
-      <p>Use o botão <strong>Importar planilha</strong> no canto superior direito para visualizar a inadimplência com clareza. O painel reconhece automaticamente a aba <strong>Receitas</strong> e preserva seus dados no próprio navegador.</p>
-      <div id="err" class="err hide" role="alert"></div>
-    </div>
-    <div class="upload-art" aria-hidden="true">
-      <svg class="upload-illustration" viewBox="0 0 340 250" role="img">
-        <defs><linearGradient id="sheetGrad" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#14618f"/><stop offset="1" stop-color="#0e3a5c"/></linearGradient><linearGradient id="coinGrad" x1="0" x2="1"><stop stop-color="#f2c46b"/><stop offset="1" stop-color="#c9871f"/></linearGradient></defs>
-        <circle class="spark" cx="57" cy="63" r="4" fill="#c9871f"/><circle class="spark" cx="286" cy="61" r="5" fill="#14618f"/><path class="spark" d="M294 152l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#c9871f"/>
-        <g class="sheet"><rect x="74" y="38" width="190" height="166" rx="18" fill="url(#sheetGrad)"/><path d="M111 81h115M111 111h115M111 141h72M111 171h94" stroke="#dcecf6" stroke-width="9" stroke-linecap="round" opacity=".9"/><path d="M91 81h2M91 111h2M91 141h2M91 171h2" stroke="#f2c46b" stroke-width="9" stroke-linecap="round"/><path d="M238 38h8a18 18 0 0 1 18 18v8h-26z" fill="#2a8fb8"/></g>
-        <g transform="translate(231 150)"><circle r="37" fill="url(#coinGrad)"/><circle r="26" fill="none" stroke="#fff3d5" stroke-width="3" opacity=".75"/><path d="M0-17v34M10-10c-4-5-18-6-19 2-1 8 17 5 18 14 1 8-15 9-20 2" fill="none" stroke="#fff3d5" stroke-width="4" stroke-linecap="round"/></g>
-        <path d="M49 210h238" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/><path d="M75 210c25-15 38-14 60-3 25 12 44-18 65-11 26 9 35 1 61-11" fill="none" stroke="#c9871f" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 9"><animate attributeName="stroke-dashoffset" from="34" to="0" dur="2s" repeatCount="indefinite"/></path>
-      </svg>
-    </div>
-    <div class="progress-wrap" id="progressWrap" role="status" aria-live="polite">
-      <div class="progress-ring">
-        <svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"/></svg>
-        <div class="progress-pct" id="progressPct">0%</div>
-      </div>
-      <div class="progress-file" id="progressFile"></div>
-      <div class="progress-label" id="progressLabel">Lendo arquivo…</div>
-    </div>
-  </div>
-
-  <div id="app" class="hide">
-    <div class="card pad">
-      <div class="sec-h"><h2>Filtros e premissas de cálculo</h2><span id="baseInfo"></span></div>
-      <div class="filters">
-        <div class="f"><label>Empresa</label><select id="fEmpresa"></select></div>
-        <div class="f"><label>Vendedor</label><select id="fVendedor"></select></div>
-        <div class="f"><label>Competência inicial</label><select id="fDe"></select></div>
-        <div class="f"><label>Competência final</label><select id="fAte"></select></div>
-        <div class="f"><label>Tolerância (dias)</label><input type="number" id="fTol" value="5" min="0" max="120" step="1" style="min-width:110px" /></div>
-        <div class="f cli-pick"><label>Cliente no histórico</label><input type="search" id="qCli" placeholder="Pesquisar cliente..." autocomplete="off" style="min-width:240px" /><div class="cli-sug hide" id="cliSug"></div></div>
-        <div class="f"><button class="btn ghost sm" id="btnReset" style="background:var(--soft);color:var(--txt);border-color:var(--line)">Limpar filtros</button></div>
-      </div>
-    </div>
-
-    <div class="card chipbar hide" id="cliBar"></div>
-
-    <div class="grid kpis" id="kpis"></div>
-
-    <section>
-      <div class="sec-h"><h2>Insights e recomendações históricas</h2><span>gerados a partir do recorte histórico selecionado</span></div>
-      <div class="card pad insights" id="insights"></div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Evolução por competência</h2><span id="compInfo">competência definida pela data de liquidação (títulos em aberto usam o mês de vencimento apenas para aparecer na linha do tempo)</span></div>
-      <div class="grid two">
-        <div class="card pad"><div class="chart-box tall"><canvas id="chComp"></canvas></div></div>
-        <div class="card pad"><div class="chart-box tall"><canvas id="chAging"></canvas></div>
-          <div class="legend" id="agingLeg"></div></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Concentração histórica de risco</h2><span>10 maiores valores históricos em atraso e desempenho das carteiras</span></div>
-      <div class="grid two-eq">
-        <div class="card pad"><div class="chart-box tall"><canvas id="chTop"></canvas></div></div>
-        <div class="card pad"><div class="chart-box tall"><canvas id="chVend"></canvas></div></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Ranking histórico de clientes</h2><span id="cliInfo"></span></div>
-      <div class="card">
-        <div class="scroll"><table id="tCli"></table></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Ranking histórico de vendedores</h2><span>carteiras ordenadas por valor histórico em atraso</span></div>
-      <div class="card"><div class="scroll"><table id="tVend"></table></div></div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Faixas históricas de atraso (aging)</h2><span>distribuição histórica dos títulos pelo prazo de atraso</span></div>
-      <div class="card"><div class="scroll"><table id="tAging"></table></div></div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Detalhe histórico por competência</h2><span>indicadores mensais históricos consolidados</span></div>
-      <div class="card"><div class="scroll"><table id="tComp"></table></div></div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Títulos e situações históricas</h2><span id="titInfo"></span></div>
-      <div class="card">
-        <div class="pad" style="padding-bottom:0;display:flex;gap:12px;flex-wrap:wrap">
-          <input type="search" id="qTit" placeholder="Filtrar por cliente ou descrição..." style="min-width:300px" />
-          <select id="fSit"><option value="">Todas as situações históricas</option><option>Pago com atraso histórico</option><option>Pago em dia (histórico)</option><option>Em aberto no histórico (vencido)</option><option>Em aberto no histórico (a vencer)</option></select>
-          <button class="btn sm" id="btnXlsx">Exportar Excel</button>
-          <button class="btn sm ghost" id="btnPdf" type="button" style="background:var(--soft);color:var(--txt);border-color:var(--line)">Visualizar PDF A4</button>
-        </div>
-        <div class="scroll"><table id="tTit"></table></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-h"><h2>Premissas e metodologia</h2><span>critérios aplicados em todos os cálculos</span></div>
-      <div class="card"><table class="prem" id="tPrem"></table></div>
-    </section>
-
-    <footer>Painel gerado localmente no navegador — nenhum dado é enviado para servidores. Posição em <span id="refDate"></span>.</footer>
-  </div>
-</main>
-
+</section>
+<div id="appShell" class="hide">
+<header><div class="w"><div><h1>Grupo Labmedic – Inadimplência histórica e comportamental</h1><p>Aba <b>Receitas</b> · prazo, títulos em aberto, score e tendência por cliente</p></div>
+<div style="display:flex;gap:8px"><button class="btn g" id="bTh">◐ Tema</button><button class="btn" id="bImp">Importar planilha</button><input type="file" id="file" accept=".xlsx,.xlsm,.xls,.csv" class="hide"></div></div></header>
+<main class="w">
+<div id="app" class="hide">
+<div class="c p"><div class="h"><h2>Filtros e premissas</h2><span id="info"></span></div><div class="f">
+<div><label class="l">Empresa</label><select id="fEmp"></select></div><div><label class="l">Vendedor</label><select id="fVend"></select></div>
+<div><label class="l">Competência por</label><select id="fBase"><option value="liq">Data de liquidação</option><option value="venc">Data de vencimento</option></select></div>
+<div><label class="l">De</label><select id="fDe"></select></div><div><label class="l">Até</label><select id="fAte"></select></div>
+<div><label class="l">Data de referência</label><input type="date" id="fRef"></div>
+<div><label class="l">Cliente</label><input type="search" id="qCli" placeholder="Pesquisar e marcar…" autocomplete="off"><div class="sug hide" id="sug"></div></div>
+<div><button class="btn s" id="bRst">Limpar filtros</button></div></div><div id="chips"></div></div>
+<div class="k" id="kpis"></div>
+<section><div class="h"><h2>Evolução mensal</h2><span>valor, atraso, margem e prazo ponderado por competência</span></div><div class="g2"><div class="c p"><div class="cb"><canvas id="chM"></canvas></div></div><div class="c p"><div class="cb"><canvas id="chA"></canvas></div></div></div></section>
+<section><div class="h"><h2>Hábitos de pagamento</h2><span>dia da semana da quitação e faixa de valor do título</span></div><div class="g2" style="grid-template-columns:1fr 1fr"><div class="c p"><div class="cb"><canvas id="chW"></canvas></div></div><div class="c p"><div class="cb"><canvas id="chB"></canvas></div></div></div></section>
+<section><div class="h"><h2>Comportamento ao longo dos meses</h2><span>prazo ponderado (dias) dos 15 clientes com maior valor em atraso — clique para abrir a linha do tempo</span></div><div class="c"><div class="sc"><table class="hm" id="hm"></table></div></div></section>
+<section id="det" class="hide"><div class="h"><h2 id="dT"></h2><button class="btn s" id="dX">Fechar</button></div><div class="c p"><div id="dS" class="mu" style="margin-bottom:8px"></div><div class="cb"><canvas id="chD"></canvas></div></div></section>
+<section><div class="h"><h2>Concentração de risco</h2></div><div class="g2" style="grid-template-columns:1fr 1fr"><div class="c p"><div class="cb"><canvas id="chT"></canvas></div></div><div class="c p"><div class="cb"><canvas id="chV"></canvas></div></div></div></section>
+<section><div class="h"><h2>Insights e recomendações</h2></div><div class="c p" id="ins"></div></section>
+<section><div class="h"><h2>Rankings e score comportamental</h2><span id="rkI"></span></div><div class="tabs" id="tabs"><button class="btn s on" data-k="cli">Clientes (valor em atraso)</button><button class="btn s" data-k="pior">Piores pagadores</button><button class="btn s" data-k="melhor">Melhores pagadores</button><button class="btn s" data-k="vend">Vendedores</button></div><div class="c"><div class="sc"><table id="tR"></table></div></div></section>
+<section><div class="h"><h2>Títulos</h2><span id="tI"></span></div><div class="c"><div class="p f"><input type="search" id="qT" placeholder="Filtrar por cliente ou descrição…" style="min-width:280px"><select id="fSit"><option value="">Todas as situações</option><option>Pago com atraso</option><option>Pago no prazo</option><option>Em aberto vencido</option><option>Em aberto a vencer</option></select><button class="btn s" id="bX">Exportar Excel</button><button class="btn s" id="bP">Relatório PDF A4</button></div><div class="sc"><table id="tT"></table></div></div></section>
+<section><div class="h"><h2>Premissas e metodologia</h2></div><div class="c"><table class="pr" id="pr"></table></div></section>
+</div></main>
+</div>
 <script>
-/* ============================ utilidades ============================ */
-const BRL = v => (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
-const BRLc = v => { const a=Math.abs(v||0);
-  if(a>=1e6) return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi';
-  if(a>=1e3) return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil';
-  return BRL(v); };
-const PCT = v => (v*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
-const NUM = (v,d=0) => (v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
-const noAcc = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-const key = s => noAcc(String(s||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
-const titleCase = s => (s||'').toLowerCase().replace(/(^|[\s\-\/])([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase());
-const DAY = 864e5;
-const fmtD = d => d ? d.toLocaleDateString('pt-BR') : '—';
-
-function parseNum(v){
-  if(v==null||v==='') return null;
-  if(typeof v==='number') return v;
-  let s=String(v).replace(/[R$\s\u00a0]/g,'');
-  if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.'); 
-  const n=parseFloat(s.replace(/[^\d.\-]/g,''));
-  return isNaN(n)?null:n;
-}
-function parseDate(v){
-  if(v==null||v==='') return null;
-  if(v instanceof Date && !isNaN(v)){ const t=new Date(v.getTime()+12*36e5); return new Date(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate()); }
-  if(typeof v==='number'){ const o=XLSX.SSF.parse_date_code(Math.floor(v+1e-6)); return o?new Date(o.y,o.m-1,o.d):null; }
-  const s=String(v).trim();
-  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  if(m){ let y=+m[3]; if(y<100) y+=2000; return new Date(y,+m[2]-1,+m[1]); }
-  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
-  const d=new Date(s); return isNaN(d)?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());
-}
-function normVend(v){
-  let s=noAcc(String(v||'')).toUpperCase();
-  s=s.replace(/\d+([.,]\d+)?\s*%/g,'').replace(/\bE\b/g,'/').replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim().replace(/[\/\-]+$/,'').trim();
-  s=s.replace(/VITALLAB/g,'VITALAB').replace(/JOSE CARLOS/g,'JOSE CARLOS');
-  return s || 'SEM VENDEDOR';
-}
-const COMP = d => d ? d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') : '—';
-const COMPLBL = c => { const [y,m]=c.split('-'); return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m-1]+'/'+y.slice(2); };
-
-/* ============================ estado ============================ */
-let RAW=[], REF=new Date(), CHARTS={};
-let SELCLI=new Map(); // cliKey -> nome exibido
-let PARSE_STATS={valTextCount:0,valTextExample:null,dateTextCount:0,dateTextExample:null,discarded:0,totalRead:0};
-const AGING=[['Pago no prazo',0,0],['6 a 15 dias',6,15],['16 a 30 dias',16,30],['31 a 60 dias',31,60],['61 a 90 dias',61,90],['91 a 180 dias',91,180],['Acima de 180 dias',181,1e9]];
-const PALETTE=['#0e3a5c','#14618f','#2a8fb8','#c9871f','#b3261e','#11705a','#6b5ca5','#8d5c05','#5b7c99','#a33e3e'];
-
-/* ============================ leitura ============================ */
-const $ = s => document.querySelector(s);
-const themeIcon = theme => theme==='dark'
-  ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg><span>*</span>'
-  : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg><span>*</span>';
-function applyTheme(theme){
-  document.documentElement.dataset.theme=theme;
-  localStorage.setItem('inad-theme',theme);
-  $('#btnTheme').innerHTML=themeIcon(theme);
-  if(RAW.length) render();
-}
-$('#btnTheme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
-$('#btnTheme').innerHTML=themeIcon(document.documentElement.dataset.theme);
-$('#btnPick').onclick=()=>$('#file').click();
-$('#file').onchange=e=>{ if(e.target.files[0]) read(e.target.files[0]); e.target.value=''; };
-function fail(msg){ hideProgress(); const el=$('#err'); el.textContent=msg; el.classList.remove('hide'); }
-
-/* ---------- indicador de progresso central ---------- */
-const RING_C=2*Math.PI*52;
-function setProgress(pct,label,fileName){
-  const wrap=$('#progressWrap'); wrap.classList.add('show');
-  $('#err').classList.add('hide');
-  pct=Math.max(0,Math.min(100,pct));
-  $('#progressPct').textContent=Math.round(pct)+'%';
-  $('#ringFg').style.strokeDashoffset=String(RING_C*(1-pct/100));
-  if(label) $('#progressLabel').textContent=label;
-  if(fileName!==undefined) $('#progressFile').textContent=fileName;
-}
-function hideProgress(){ $('#progressWrap').classList.remove('show'); }
-function tick(){ return new Promise(r=>setTimeout(r,0)); }
-
-/* ---------- leitura robusta de bytes (mobile/content:// seguro) ---------- */
-function readViaFileReader(file,onProgress){
-  return new Promise((resolve,reject)=>{
-    const fr=new FileReader();
-    fr.onprogress=ev=>{ if(ev.lengthComputable&&onProgress) onProgress(ev.loaded/ev.total); };
-    fr.onload=()=>resolve(fr.result);
-    fr.onerror=()=>reject(fr.error||new Error('falha no FileReader'));
-    fr.readAsArrayBuffer(file);
-  });
-}
-async function readFileBuffer(file,onProgress){
-  // Em alguns navegadores/dispositivos móveis (ex.: arquivos abertos via content:// de apps
-  // como WhatsApp/e-mail), o FileReader pode retornar um buffer incompleto para arquivos
-  // grandes. Tentamos primeiro (para ter progresso real) e validamos o tamanho; se algo
-  // não bater, caímos para file.arrayBuffer(), que é mais confiável nesses casos.
-  try{
-    const buf=await readViaFileReader(file,onProgress);
-    if(buf && buf.byteLength===file.size) return buf;
-  }catch(e){ /* segue para o fallback */ }
-  if(typeof file.arrayBuffer==='function'){
-    if(onProgress) onProgress(1);
-    return await file.arrayBuffer();
-  }
-  throw new Error('não foi possível ler os bytes do arquivo neste navegador');
-}
-function looksLikeZip(buf){ const b=new Uint8Array(buf.slice(0,2)); return b[0]===0x50&&b[1]===0x4b; }
-function looksLikeOldXls(buf){ const sig=[0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1]; const b=new Uint8Array(buf.slice(0,8)); return sig.every((v,i)=>b[i]===v); }
-
-function receitasSheet(wb){
-  const exact=wb.SheetNames.find(n=>key(n)==='RECEITAS');
-  return exact || wb.SheetNames.find(n=>key(n).includes('RECEITA')) || null;
-}
-
-async function read(file){
-  $('#err').classList.add('hide');
-  setProgress(1,'Lendo arquivo…',file.name);
-  await tick();
-  try{
-    if(typeof XLSX==='undefined'){
-      return fail('A biblioteca de leitura de planilhas ainda não carregou (conexão lenta ou bloqueada). Aguarde alguns segundos e tente novamente.');
-    }
-    const buf=await readFileBuffer(file,frac=>setProgress(1+frac*44,'Lendo arquivo… ('+Math.round(frac*100)+'%)',file.name));
-    if(!buf || !buf.byteLength){
-      return fail('O arquivo foi lido com 0 bytes. Se você abriu este painel a partir de um anexo (WhatsApp, e-mail etc.), salve a planilha no armazenamento do aparelho antes de importar.');
-    }
-    const ext=(file.name.split('.').pop()||'').toLowerCase();
-    if((ext==='xlsx'||ext==='xlsm') && !looksLikeZip(buf)){
-      return fail('O arquivo não foi lido corretamente neste dispositivo/navegador (conteúdo incompleto ou corrompido). Salve a planilha no armazenamento do aparelho antes de importar, ou tente em outro navegador.');
-    }
-    if(ext==='xls' && !looksLikeZip(buf) && !looksLikeOldXls(buf)){
-      return fail('O arquivo não foi lido corretamente neste dispositivo/navegador (conteúdo incompleto ou corrompido). Salve a planilha no armazenamento do aparelho antes de importar, ou tente em outro navegador.');
-    }
-    setProgress(50,'Processando planilha…',file.name); await tick();
-    const wb=XLSX.read(buf,{type:'array',cellDates:false});
-    const name=receitasSheet(wb);
-    if(!name) return fail('A planilha precisa conter uma aba chamada “Receitas”. Abas disponíveis: '+wb.SheetNames.join(', ')+'.');
-    setProgress(68,'Lendo lançamentos da aba “'+name+'”…',file.name); await tick();
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null});
-    setProgress(84,'Calculando indicadores…',file.name); await tick();
-    const parsed=build(rows);
-    if(!parsed.length) return fail('Não foi possível localizar linhas com CLIENTE, VENCIMENTO e VALOR na aba "'+name+'".');
-    RAW=parsed;
-    const liqDates=RAW.filter(r=>r.liq).map(r=>+r.liq);
-    REF = liqDates.length ? new Date(Math.max(...liqDates)) : new Date();
-    setProgress(97,'Finalizando…',file.name); await tick();
-    $('#loader').classList.add('hide'); $('#app').classList.remove('hide');
-    $('#baseInfo').innerHTML='Arquivo <b>'+file.name+'</b> · aba <b>'+name+'</b> · '+NUM(RAW.length)+' títulos';
-    $('#refDate').textContent=fmtD(REF);
-    initFilters(); render();
-    hideProgress();
-    window.scrollTo({top:0,behavior:'smooth'});
-  }catch(err){ console.error(err); fail('Falha ao ler o arquivo: '+err.message); }
-}
-
-function build(rows){
-  const want={CLIENTE:'cli',VENCIMENTO:'venc',DESCRICAO:'desc',VALOR:'val',LIQUIDACAO:'liq',VENDEDOR:'vend',EMPRESA:'emp'};
-  let hdr=-1, map={};
-  for(let i=0;i<Math.min(rows.length,30);i++){
-    const m={}; (rows[i]||[]).forEach((c,j)=>{ const k=key(c); if(want[k]!==undefined) m[want[k]]=j; });
-    if(m.cli!==undefined&&m.venc!==undefined&&m.val!==undefined){ hdr=i; map=m; break; }
-  }
-  if(hdr<0) return [];
-  const out=[];
-  let discarded=0, valTextCount=0, valTextExample=null, dateTextCount=0, dateTextExample=null;
-  for(let i=hdr+1;i<rows.length;i++){
-    const r=rows[i]||[];
-    if(!r.length || r.every(c=>c==null||c==='')) continue;
-    const cli=r[map.cli];
-    const rawVenc=r[map.venc]; const venc=parseDate(rawVenc);
-    const rawVal=r[map.val]; const val=parseNum(rawVal);
-    if(!cli||!venc||val==null){ discarded++; continue; }
-    if(rawVal!=null && typeof rawVal!=='number'){ valTextCount++; if(valTextExample==null) valTextExample=String(rawVal); }
-    if(rawVenc!=null && typeof rawVenc!=='number' && !(rawVenc instanceof Date)){ dateTextCount++; if(dateTextExample==null) dateTextExample=String(rawVenc); }
-    const liq=map.liq!==undefined?parseDate(r[map.liq]):null;
-    out.push({
-      cli:titleCase(String(cli).trim()), cliKey:key(cli),
-      venc, liq, val,
-      desc:String(r[map.desc]??'').trim(),
-      vend:normVend(map.vend!==undefined?r[map.vend]:''),
-      emp:String(r[map.emp]??'—').trim().toUpperCase()||'—',
-      comp:COMP(liq||venc)
-    });
-  }
-  PARSE_STATS={valTextCount,valTextExample,dateTextCount,dateTextExample,discarded,totalRead:out.length+discarded};
-  return out;
-}
-
-/* ============================ filtros ============================ */
-function initFilters(){
-  const comps=[...new Set(RAW.map(r=>r.comp))].sort();
-  fill('#fEmpresa',['Todas',...[...new Set(RAW.map(r=>r.emp))].sort()]);
-  fill('#fVendedor',['Todos',...[...new Set(RAW.map(r=>r.vend))].sort()]);
-  fill('#fDe',comps,COMPLBL); fill('#fAte',comps,COMPLBL);
-  $('#fDe').value=comps[0]; $('#fAte').value=comps[comps.length-1];
-  ['#fEmpresa','#fVendedor','#fDe','#fAte','#fTol'].forEach(s=>$(s).onchange=render);
-  $('#fTol').oninput=render;
-  $('#btnReset').onclick=()=>{ $('#fEmpresa').value='Todas'; $('#fVendedor').value='Todos'; $('#fDe').value=comps[0]; $('#fAte').value=comps[comps.length-1]; $('#fTol').value=5; $('#qCli').value=''; SELCLI=new Map(); hideSug(); render(); };
-  $('#qCli').oninput=()=>{ suggest(); render(); };
-  $('#qCli').onfocus=suggest;
-  document.addEventListener('click',e=>{ if(!e.target.closest('.cli-pick')) hideSug(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideSug(); });
-  $('#qTit').oninput=()=>tableTitulos(current());
-  $('#fSit').onchange=()=>tableTitulos(current());
-  $('#btnXlsx').onclick=exportXlsx;
-  $('#btnPdf').onclick=exportPdf;
-}
-/* ---------- pesquisa de clientes com marcacao ---------- */
-function hideSug(){ $('#cliSug').classList.add('hide'); }
-function clienteOptions(q){
-  const m=new Map();
-  RAW.forEach(r=>{ const o=m.get(r.cliKey)||{k:r.cliKey,nome:r.cli,n:0}; o.n++; m.set(r.cliKey,o); });
-  let arr=[...m.values()];
-  if(q) arr=arr.filter(o=>o.k.includes(q)||key(o.nome).includes(q));
-  return arr.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
-}
-function suggest(){
-  const box=$('#cliSug'), raw=$('#qCli').value.trim(), q=key(raw);
-  if(!raw && !SELCLI.size){ hideSug(); return; }
-  const arr=clienteOptions(q), view=arr.slice(0,80);
-  box.innerHTML = view.length
-    ? view.map(o=>`<label class="opt"><input type="checkbox" data-k="${o.k}" ${SELCLI.has(o.k)?'checked':''}><span class="nm">${o.nome}</span><span class="meta">${NUM(o.n)} tit.</span></label>`).join('')
-      + (arr.length>view.length?`<div class="more">Exibindo ${view.length} de ${NUM(arr.length)} clientes — refine a pesquisa.</div>`:'')
-    : '<div class="empty">Nenhum cliente encontrado.</div>';
-  box.classList.remove('hide');
-  box.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
-    const k=cb.dataset.k, o=arr.find(x=>x.k===k);
-    if(cb.checked) SELCLI.set(k,o.nome); else SELCLI.delete(k);
-    render();
-  });
-}
-function cliBar(){
-  const bar=$('#cliBar');
-  if(!SELCLI.size){ bar.classList.add('hide'); bar.innerHTML=''; return; }
-  bar.classList.remove('hide');
-  bar.innerHTML='<span class="cap">Clientes selecionados ('+NUM(SELCLI.size)+')</span>'
-    + [...SELCLI.entries()].map(([k,n])=>`<span class="chip">${n}<button type="button" data-k="${k}" aria-label="Remover ${n}">&times;</button></span>`).join('')
-    + '<button class="btn ghost sm" id="btnClearCli" style="background:var(--soft);color:var(--txt);border-color:var(--line);margin-left:auto">Limpar sele&ccedil;&atilde;o</button>';
-  bar.querySelectorAll('.chip button').forEach(b=>b.onclick=()=>{ SELCLI.delete(b.dataset.k); suggest(); render(); });
-  $('#btnClearCli').onclick=()=>{ SELCLI=new Map(); hideSug(); render(); };
-}
-
-function fill(sel,arr,lbl){ $(sel).innerHTML=arr.map(v=>`<option value="${v}">${lbl?lbl(v):v}</option>`).join(''); }
-
-function current(){
-  const emp=$('#fEmpresa').value, vend=$('#fVendedor').value, de=$('#fDe').value, ate=$('#fAte').value,
-        tol=Math.max(0,+$('#fTol').value||0), cliente=key($('#qCli').value);
-  return RAW.filter(r=>
-    (emp==='Todas'||r.emp===emp) && (vend==='Todos'||r.vend===vend) &&
-    r.comp>=de && r.comp<=ate &&
-    (SELCLI.size ? SELCLI.has(r.cliKey) : (!cliente||r.cliKey.includes(cliente)))
-  ).map(r=>{
-    // O prazo de inadimplência só existe entre o vencimento e a efetiva liquidação:
-    // sem liquidação, o título não tem prazo apurado — fica apenas "em aberto".
-    const atraso=r.liq ? Math.max(0,Math.round((r.liq-r.venc)/DAY)) : null;
-    const inad=atraso!=null && atraso>tol;
-    const sit=r.liq ? (inad?'Pago com atraso histórico':'Pago em dia (histórico)') : (r.venc<REF?'Em aberto no histórico (vencido)':'Em aberto no histórico (a vencer)');
-    return {...r,atraso,inad,sit,aberto:!r.liq,tol};
-  });
-}
-
-/* ============================ agregações ============================ */
-function agg(rows){
-  const v=sum(rows,r=>r.val);
-  const medidos=rows.filter(r=>r.atraso!=null); // apenas títulos com liquidação efetiva
-  const inad=medidos.filter(r=>r.inad), va=sum(inad,r=>r.val);
-  return {n:rows.length, v, ni:inad.length, va, margem:v?va/v:0,
-    prazo: inad.length? sum(inad,r=>r.atraso)/inad.length : 0,
-    pond: va? sum(inad,r=>r.atraso*r.val)/va : 0,
-    min: inad.length? Math.min(...inad.map(r=>r.atraso)) : 0,
-    max: medidos.length? Math.max(...medidos.map(r=>r.atraso)) : 0,
-    maxInad: inad.length? Math.max(...inad.map(r=>r.atraso)) : 0,
-    clientes:new Set(rows.map(r=>r.cliKey)).size,
-    cliInad:new Set(inad.map(r=>r.cliKey)).size,
-    liquidados: medidos.length,
-    aberto: sum(rows.filter(r=>r.aberto),r=>r.val)};
-}
-const sum=(a,f)=>a.reduce((s,x)=>s+(f(x)||0),0);
-function groupBy(rows,f){ const m=new Map(); rows.forEach(r=>{ const k=f(r); (m.get(k)||m.set(k,[]).get(k)).push(r); }); return m; }
-function risco(a){ if(!a.ni) return ['Baixo','t-green']; if(a.margem>=.5&&a.prazo>=30) return ['Crítico','t-red']; if(a.margem>=.5||a.prazo>=30) return ['Alto','t-amber']; return ['Médio','t-grey']; }
-
-/* ============================ render ============================ */
-function render(){
-  const rows=current(), a=agg(rows);
-  cliBar();
-  kpis(rows,a); insights(rows,a);
-  chartComp(rows); chartAging(rows); chartTop(rows); chartVend(rows);
-  tableClientes(rows); tableVend(rows); tableAging(rows); tableComp(rows); tableTitulos(rows); premissas(rows,a);
-}
-
-function kpis(rows,a){
-  const tol=+$('#fTol').value||0;
-  const card=(lab,val,sub,tag)=>`<div class="card kpi"><div class="lab">${lab}</div><div class="val">${val}</div><div class="sub">${sub}${tag?' <span class="tag '+tag[1]+'">'+tag[0]+'</span>':''}</div></div>`;
-  const [rk,rc]=risco(a);
-  $('#kpis').innerHTML=[
-    card('Faturamento histórico no recorte',BRL(a.v),NUM(a.n)+' títulos · '+NUM(a.clientes)+' clientes'),
-    card('Valor histórico pago com atraso',BRL(a.va),NUM(a.ni)+' títulos acima de '+tol+' dia(s)'),
-    card('Margem histórica de inadimplência',PCT(a.margem),'do faturamento histórico do recorte',[rk,rc]),
-    card('Prazo médio histórico de atraso',NUM(a.prazo,1)+' dia(s)',NUM(a.pond,1)+' dia(s) ponderado por valor'),
-    card('Clientes com inadimplência histórica',NUM(a.cliInad),PCT(a.clientes?a.cliInad/a.clientes:0)+' da base histórica'),
-    card('Em aberto no histórico',BRL(a.aberto),a.aberto?'títulos sem liquidação informada':'toda a base histórica está liquidada'),
-    card('Menor prazo histórico de atraso',a.ni?NUM(a.min)+' dia(s)':'—',a.ni?'entre os títulos historicamente inadimplentes':'nenhum título acima da tolerância'),
-    card('Maior prazo histórico de atraso',a.ni?NUM(a.maxInad)+' dia(s)':'—',a.ni?'entre os títulos historicamente inadimplentes':'nenhum título acima da tolerância')
-  ].join('');
-}
-
-function insights(rows,a){
-  const out=[], tol=+$('#fTol').value||0;
-  const cli=[...groupBy(rows,r=>r.cliKey).entries()].map(([k,rs])=>({nome:rs[0].cli,...agg(rs)})).sort((x,y)=>y.va-x.va);
-  const top5=sum(cli.slice(0,5),c=>c.va), share=a.va?top5/a.va:0;
-  const vend=[...groupBy(rows,r=>r.vend).entries()].map(([k,rs])=>({nome:k,...agg(rs)})).filter(v=>v.v>=a.v*0.02).sort((x,y)=>y.margem-x.margem);
-  const comps=[...groupBy(rows,r=>r.comp).entries()].map(([k,rs])=>({c:k,...agg(rs)})).sort((x,y)=>x.c<y.c?-1:1);
-  const rec=comps.slice(-7), prev=comps.slice(-14,-7);
-  const mr=sum(rec,c=>c.va)/(sum(rec,c=>c.v)||1), mp=sum(prev,c=>c.va)/(sum(prev,c=>c.v)||1);
-
-  out.push(['crit','Margem global de '+PCT(a.margem),
-    BRL(a.va)+' de '+BRL(a.v)+' foram liquidados com mais de '+tol+' dia(s) de atraso — capital de giro financiado involuntariamente pela empresa.']);
-  if(cli.length) out.push([share>=.6?'crit':'','Concentração de risco em poucos clientes',
-    'Os 5 maiores devedores respondem por '+PCT(share)+' de todo o valor em atraso. O maior é '+cli[0].nome+', com '+BRL(cli[0].va)+' ('+PCT(cli[0].margem)+' da própria carteira).']);
-  out.push([mr>mp?'crit':'ok','Tendência dos últimos meses',
-    'Margem de '+PCT(mr)+' nas 7 competências mais recentes contra '+PCT(mp)+' nas 7 anteriores — '+(mr>mp?'deterioração':'melhora')+' de '+NUM(Math.abs(mr-mp)*100,1)+' p.p.']);
-  out.push(['','Impacto financeiro do prazo',
-    'Prazo médio de '+NUM(a.prazo,1)+' dia(s) e '+NUM(a.pond,1)+' dia(s) quando ponderado pelo valor: '+(a.pond>a.prazo?'os títulos maiores atrasam mais':'os atrasos concentram-se em títulos menores')+'.']);
-  if(vend.length>1) out.push(['','Desempenho das carteiras',
-    'Considerando apenas carteiras com ao menos 2% do faturamento — pior desempenho: '+vend[0].nome+' ('+PCT(vend[0].margem)+' de margem sobre '+BRLc(vend[0].v)+'). Melhor: '+vend[vend.length-1].nome+' ('+PCT(vend[vend.length-1].margem)+').']);
-  const aberto=rows.filter(r=>r.aberto);
-  if(aberto.length) out.push(['crit','Títulos em aberto',
-    NUM(aberto.length)+' títulos sem liquidação, somando '+BRL(sum(aberto,r=>r.val))+' — priorizar cobrança ativa.']);
-
-  $('#insights').innerHTML=out.map((o,i)=>`<div class="ins ${o[0]}"><div><b>${i+1}. ${o[1]}</b><p>${o[2]}</p></div></div>`).join('');
-}
-
-/* ---------- gráficos ---------- */
-function mk(id,cfg){ Chart.defaults.color=cssVar('--chart-muted'); Chart.defaults.borderColor=cssVar('--chart-grid'); CHARTS[id]?.destroy(); CHARTS[id]=new Chart($('#'+id),cfg); }
-const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const gridOpt=()=>({grid:{color:cssVar('--chart-grid')},ticks:{color:cssVar('--chart-muted'),font:{family:'Manrope',size:11}}});
-const noGrid=()=>({grid:{display:false},ticks:{color:cssVar('--chart-muted'),font:{family:'Manrope',size:11}}});
-
-function chartComp(rows){
-  const g=[...groupBy(rows,r=>r.comp).entries()].map(([c,rs])=>({c,...agg(rs)})).sort((x,y)=>x.c<y.c?-1:1);
-  mk('chComp',{data:{labels:g.map(x=>COMPLBL(x.c)),datasets:[
-    {type:'bar',label:'Faturamento',data:g.map(x=>x.v),backgroundColor:cssVar('--chart-pale'),borderRadius:4,order:3,yAxisID:'y'},
-    {type:'bar',label:'Valor em atraso histórico',data:g.map(x=>x.va),backgroundColor:'#14618f',borderRadius:4,order:2,yAxisID:'y'},
-    {type:'line',label:'Margem histórica de inadimplência',data:g.map(x=>x.margem*100),borderColor:'#c9871f',backgroundColor:'#c9871f',borderWidth:2,tension:.3,pointRadius:2,yAxisID:'y1',order:1}]},
-    options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{title:{display:true,text:'Faturamento, atraso histórico e margem histórica por competência',font:{family:'Sora',size:14},color:cssVar('--chart-title'),padding:{bottom:12}},
-        legend:{labels:{boxWidth:10,font:{family:'Manrope',size:11.5}}},
-        tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y1'?' Margem: '+NUM(c.parsed.y,1)+'%':' '+c.dataset.label+': '+BRL(c.parsed.y)}}},
-      scales:{x:{...noGrid(),stacked:false},y:{...gridOpt(),ticks:{...gridOpt().ticks,callback:v=>BRLc(v)}},
-        y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{color:'#c9871f',callback:v=>v+'%'}}}}});
-}
-
-function chartAging(rows){
-  const b=agingRows(rows);
-  mk('chAging',{type:'doughnut',data:{labels:b.map(x=>x.lab),datasets:[{data:b.map(x=>x.v),backgroundColor:['#11705a','#2a8fb8','#14618f','#c9871f','#8d5c05','#b3261e','#5d1410'],borderWidth:2,borderColor:cssVar('--donut-border')}]},
-    options:{maintainAspectRatio:false,cutout:'58%',plugins:{
-      title:{display:true,text:'Distribuição do valor por faixa histórica de atraso',font:{family:'Sora',size:14},color:cssVar('--chart-title'),padding:{bottom:12}},
-      legend:{position:'bottom',labels:{boxWidth:10,font:{family:'Manrope',size:11.5}}},
-      tooltip:{callbacks:{label:c=>' '+BRL(c.parsed)+' ('+PCT(c.parsed/(c.dataset.data.reduce((s,x)=>s+x,0)||1))+')'}}}}});
-  const tot=sum(b,x=>x.v);
-  $('#agingLeg').innerHTML=b.filter(x=>x.n).map(x=>`<span><i class="dot" style="background:${x.color}"></i>${x.lab}: ${NUM(x.n)} títulos · ${PCT(tot?x.v/tot:0)}</span>`).join('');
-}
-function agingRows(rows){
-  const colors=['#11705a','#2a8fb8','#14618f','#c9871f','#8d5c05','#b3261e','#5d1410'];
-  const tol=+$('#fTol').value||0;
-  const medidos=rows.filter(r=>r.atraso!=null); // só títulos com liquidação efetiva têm prazo apurado
-  return AGING.map((f,i)=>{
-    const rs = i===0 ? medidos.filter(r=>!r.inad) : medidos.filter(r=>r.inad&&r.atraso>=f[1]&&r.atraso<=f[2]);
-    const lab = i===0 ? 'Pago no prazo (até '+tol+' dia(s))' : f[0];
-    return {lab,color:colors[i],n:rs.length,v:sum(rs,r=>r.val),prazo:rs.length?sum(rs,r=>r.atraso)/rs.length:0,cli:new Set(rs.map(r=>r.cliKey)).size};
-  });
-}
-
-function chartTop(rows){
-  const g=[...groupBy(rows,r=>r.cliKey).entries()].map(([k,rs])=>({nome:rs[0].cli,...agg(rs)})).sort((x,y)=>y.va-x.va).slice(0,10).reverse();
-  mk('chTop',{type:'bar',data:{labels:g.map(x=>x.nome.length>34?x.nome.slice(0,32)+'…':x.nome),
-    datasets:[{label:'Valor em atraso histórico',data:g.map(x=>x.va),backgroundColor:'#b3261e',borderRadius:4},
-              {label:'Faturamento histórico',data:g.map(x=>x.v),backgroundColor:cssVar('--chart-pale'),borderRadius:4}]},
-    options:{indexAxis:'y',maintainAspectRatio:false,
-      plugins:{title:{display:true,text:'10 maiores clientes por valor em atraso histórico',font:{family:'Sora',size:14},color:cssVar('--chart-title'),padding:{bottom:12}},
-        legend:{labels:{boxWidth:10,font:{family:'Manrope',size:11.5}}},
-        tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+BRL(c.parsed.x)}}},
-      scales:{x:{...gridOpt(),ticks:{...gridOpt().ticks,callback:v=>BRLc(v)}},y:{...noGrid(),ticks:{...noGrid().ticks,font:{size:10.5,family:'Manrope'}}}}}});
-}
-
-function chartVend(rows){
-  const g=[...groupBy(rows,r=>r.vend).entries()].map(([k,rs])=>({nome:k,...agg(rs)})).sort((x,y)=>y.va-x.va).slice(0,10);
-  mk('chVend',{type:'bar',data:{labels:g.map(x=>x.nome.length>18?x.nome.slice(0,17)+'…':x.nome),
-    datasets:[{type:'bar',label:'Valor em atraso histórico',data:g.map(x=>x.va),backgroundColor:'#0e3a5c',borderRadius:4,yAxisID:'y'},
-      {type:'line',label:'Margem histórica (%)',data:g.map(x=>x.margem*100),borderColor:'#c9871f',backgroundColor:'#c9871f',borderWidth:2,pointRadius:3,tension:.25,yAxisID:'y1'}]},
-    options:{maintainAspectRatio:false,
-        plugins:{title:{display:true,text:'Inadimplência histórica por carteira de vendedor',font:{family:'Sora',size:14},color:cssVar('--chart-title'),padding:{bottom:12}},
-        legend:{labels:{boxWidth:10,font:{family:'Manrope',size:11.5}}},
-        tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y1'?' Margem: '+NUM(c.parsed.y,1)+'%':' Atraso: '+BRL(c.parsed.y)}}},
-      scales:{x:{...noGrid(),ticks:{...noGrid().ticks,maxRotation:55,minRotation:35,font:{size:10.5,family:'Manrope'}}},
-        y:{...gridOpt(),ticks:{...gridOpt().ticks,callback:v=>BRLc(v)}},
-        y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{color:'#c9871f',callback:v=>v+'%'}}}}});
-}
-
-/* ---------- tabelas ---------- */
-function tbl(el,cols,data,sortIdx){
-  const st=el._sort ?? (sortIdx===undefined?null:sortIdx), dir=el._dir ?? 1;
-  const d = st===null ? [...data] : [...data].sort((a,b)=>{ const x=a[st],y=b[st];
-    return (typeof x==='number'&&typeof y==='number')? (y-x)*dir : String(x).localeCompare(String(y),'pt-BR')*(dir===1?1:-1); });
-  el.innerHTML='<thead><tr>'+cols.map((c,i)=>`<th data-i="${i}">${c}</th>`).join('')+'</tr></thead><tbody>'+
-    d.map(r=>'<tr>'+r.map((c,i)=>`<td>${typeof c==='number'?NUM(c):c}</td>`).join('')+'</tr>').join('')+'</tbody>';
-  el.querySelectorAll('th').forEach(th=>th.onclick=()=>{ const i=+th.dataset.i;
-    if(el._sort===i) el._dir=(el._dir??1)*-1; else {el._sort=i; el._dir=1;} tbl(el,cols,data,sortIdx); });
-}
-function bar(v,max){ return `<span class="bar"><i style="width:${max?Math.max(2,v/max*100):0}%"></i></span>`; }
-
-function tableClientes(rows){
-  let g=[...groupBy(rows,r=>r.cliKey).entries()].map(([k,rs])=>{
-    const a=agg(rs), [rk,rc]=risco(a);
-    const vp=[...groupBy(rs,r=>r.vend).entries()].map(([v,x])=>[v,sum(x,y=>y.val)]).sort((x,y)=>y[1]-x[1])[0][0];
-    return {k,nome:rs[0].cli,a,rk,rc,vp,comps:new Set(rs.filter(r=>r.inad).map(r=>r.comp)).size};
-  }).sort((x,y)=>y.a.va-x.a.va);
-  const max=g.length?g[0].a.va:0;
-  $('#cliInfo').textContent=NUM(g.length)+' clientes únicos · ordenados por inadimplência histórica';
-  tbl($('#tCli'),['#','Cliente','Títulos','Valor total histórico','Valor em atraso histórico','Peso histórico','Margem histórica','Prazo médio histórico','Prazo pond. histórico','Máx. histórico','Comp. c/ atraso histórico','Vendedor principal','Risco histórico'],
-    g.map((c,i)=>[i+1,c.nome,c.a.n,BRL(c.a.v),BRL(c.a.va),bar(c.a.va,max),PCT(c.a.margem),NUM(c.a.prazo,1),NUM(c.a.pond,1),c.a.max,c.comps,c.vp,`<span class="tag ${c.rc}">${c.rk}</span>`]));
-}
-
-function tableVend(rows){
-  let g=[...groupBy(rows,r=>r.vend).entries()].map(([k,rs])=>({nome:k,a:agg(rs)})).sort((x,y)=>y.a.va-x.a.va);
-  const max=g.length?g[0].a.va:0;
-  tbl($('#tVend'),['#','Vendedor','Clientes','Clientes com inadimplência histórica','% clientes históricos','Títulos','Valor total histórico','Valor em atraso histórico','Peso histórico','Margem histórica','Prazo médio histórico','Prazo pond. histórico'],
-    g.map((v,i)=>[i+1,v.nome,v.a.clientes,v.a.cliInad,PCT(v.a.clientes?v.a.cliInad/v.a.clientes:0),v.a.n,BRL(v.a.v),BRL(v.a.va),bar(v.a.va,max),PCT(v.a.margem),NUM(v.a.prazo,1),NUM(v.a.pond,1)]));
-}
-
-function tableAging(rows){
-  const b=agingRows(rows), tot=sum(b,x=>x.v), totn=sum(b,x=>x.n);
-  const data=b.map(x=>[x.lab,x.n,BRL(x.v),PCT(tot?x.v/tot:0),NUM(x.prazo,1),x.cli]);
-  data.push(['TOTAL',totn,BRL(tot),'100,0%','—',new Set(rows.filter(r=>r.atraso!=null).map(r=>r.cliKey)).size]);
-  const el=$('#tAging'); el._sort=null;
-  el.innerHTML='<thead><tr>'+['Faixa histórica de atraso','Títulos','Valor histórico','% do valor histórico','Prazo médio histórico (dia(s))','Clientes únicos históricos'].map(c=>`<th style="cursor:default">${c}</th>`).join('')+'</tr></thead><tbody>'+
-    data.map((r,i)=>`<tr${i===data.length-1?' style="font-weight:700;background:var(--table-head)"':''}>`+r.map(c=>`<td>${typeof c==='number'?NUM(c):c}</td>`).join('')+'</tr>').join('')+'</tbody>';
-}
-
-function tableComp(rows){
-  const g=[...groupBy(rows,r=>r.comp).entries()].map(([c,rs])=>({c,a:agg(rs)})).sort((x,y)=>x.c<y.c?1:-1);
-  const max=g.length?Math.max(...g.map(x=>x.a.va)):0;
-  tbl($('#tComp'),['Competência histórica','Títulos','Valor total histórico','Títulos com atraso histórico','Valor em atraso histórico','Peso histórico','Margem histórica','Clientes','Clientes com inadimplência histórica','% clientes históricos','Prazo médio histórico','Prazo pond. histórico','Máx. histórico'],
-    g.map(x=>[x.c,x.a.n,BRL(x.a.v),x.a.ni,BRL(x.a.va),bar(x.a.va,max),PCT(x.a.margem),x.a.clientes,x.a.cliInad,PCT(x.a.clientes?x.a.cliInad/x.a.clientes:0),NUM(x.a.prazo,1),NUM(x.a.pond,1),x.a.max]),0);
-}
-
-let TITVIEW=[];
-function tableTitulos(rows){
-  const q=key($('#qTit').value), sit=$('#fSit').value;
-  TITVIEW=rows.filter(r=>(!q||key(r.cli+r.desc).includes(q))&&(!sit||r.sit===sit))
-    .sort((a,b)=>a.cli.localeCompare(b.cli,'pt-BR')||a.venc-b.venc);
-  $('#titInfo').textContent=NUM(TITVIEW.length)+' de '+NUM(rows.length)+' títulos no recorte';
-  const view=TITVIEW.slice(0,600);
-  const el=$('#tTit'); el._sort=null;
-  el.innerHTML='<thead><tr>'+['Cliente','Competência histórica','Vencimento','Liquidação','Descrição','Valor histórico','Vendedor','Empresa','Prazo de inadimplência (dias)','Inadimplência histórica','Situação histórica'].map(c=>`<th style="cursor:default">${c}</th>`).join('')+'</tr></thead><tbody>'+
-    view.map(r=>`<tr><td>${r.cli}</td><td>${r.comp}</td><td>${fmtD(r.venc)}</td><td>${fmtD(r.liq)}</td><td style="white-space:normal;text-align:left;max-width:280px">${r.desc||'—'}</td><td>${BRL(r.val)}</td><td>${r.vend}</td><td>${r.emp}</td><td>${r.atraso==null?'—':r.atraso}</td><td>${r.aberto?'<span class="tag t-grey">EM ABERTO</span>':'<span class="tag '+(r.inad?'t-red':'t-green')+'">'+(r.inad?'SIM':'NÃO')+'</span>'}</td><td>${r.sit}</td></tr>`).join('')+'</tbody>';
-  if(TITVIEW.length>600) el.insertAdjacentHTML('beforeend',`<tfoot><tr><td colspan="11" style="text-align:center;color:var(--muted)">Exibindo os 600 primeiros de ${NUM(TITVIEW.length)} títulos — refine o filtro ou exporte em Excel para ver todos.</td></tr></tfoot>`);
-}
-function exportXlsx(){
-  if(!TITVIEW||!TITVIEW.length){alert('Nenhum título para exportar.');return;}
-  const head=['CLIENTE','COMPETÊNCIA HISTÓRICA','VENCIMENTO','LIQUIDAÇÃO','DESCRIÇÃO','VALOR HISTÓRICO','VENDEDOR','EMPRESA','PRAZO DE INADIMPLÊNCIA (DIAS)','INADIMPLÊNCIA HISTÓRICA','SITUAÇÃO HISTÓRICA'];
-  const data=[head].concat(TITVIEW.map(r=>[r.cli,r.comp,r.venc||null,r.liq||null,r.desc||'',r.val,r.vend,r.emp,r.atraso==null?'':r.atraso,r.aberto?'EM ABERTO':(r.inad?'SIM':'NÃO'),r.sit]));
-  const ws=XLSX.utils.aoa_to_sheet(data,{cellDates:true});
-  const rg=XLSX.utils.decode_range(ws['!ref']);
-  for(let R=1;R<=rg.e.r;R++){
-    ['C','D'].forEach(c=>{const x=ws[c+(R+1)]; if(x&&x.t==='d') x.z='dd/mm/yyyy';});
-    const v=ws['F'+(R+1)]; if(v) v.z='"R$" #,##0.00';
-  }
-  ws['!cols']=[30,12,12,12,40,15,22,14,12,12,20].map(w=>({wch:w}));
-  ws['!autofilter']={ref:ws['!ref']};
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Títulos');
-  XLSX.writeFile(wb,'titulos_inadimplencia.xlsx',{cellDates:true});
-}
-
-function exportPdf(){
-  const rows=current(), a=agg(rows), JsPDF=window.jspdf?.jsPDF;
-  if(!JsPDF){ alert('Não foi possível carregar o módulo de PDF. Verifique sua conexão e tente novamente.'); return; }
-  if(!rows.length){ alert('Nenhum registro no recorte selecionado.'); return; }
-  const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const blue=[14,58,92], gold=[201,135,31], ink=[26,37,64], muted=[102,116,143], pale=[244,246,250], red=[179,38,30];
-  const W=297, H=210, margin=12;
-  const txt=(s,x,y,size=8,color=ink,style='normal')=>{doc.setFont('helvetica',style);doc.setFontSize(size);doc.setTextColor(...color);doc.text(String(s),x,y);};
-  const money=v=>BRLc(v).replace('R$ ','R$ ');
-  const pageHeader=(title,subtitle)=>{
-    doc.setFillColor(...blue); doc.rect(0,0,W,25,'F');
-    doc.setFillColor(...gold); doc.roundedRect(margin,6,13,13,3,3,'F'); txt('GL',margin+2.7,14.7,8,[42,26,2],'bold');
-    txt('GRUPO LABMEDIC',30,10,12,[255,255,255],'bold'); txt(title,30,17,8,[220,235,246],'normal');
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(220,235,246);doc.text(String(subtitle),W-margin,10,{align:'right'});
-  };
-  const card=(x,y,w,label,value,sub,color=blue,h=22)=>{doc.setFillColor(255,255,255);doc.setDrawColor(220,226,235);doc.roundedRect(x,y,w,h,3,3,'FD');doc.setFillColor(...color);doc.roundedRect(x,y,2.2,h,1,1,'F');txt(label,x+6,y+6,6,muted,'bold');txt(value,x+6,y+14,11,ink,'bold');txt(sub,x+6,y+19,5.8,muted);};
-  const mini=(x,y,w,label,value,sub,color=blue)=>{const h=14;doc.setFillColor(255,255,255);doc.setDrawColor(220,226,235);doc.roundedRect(x,y,w,h,2.5,2.5,'FD');doc.setFillColor(...color);doc.roundedRect(x,y,2,h,1,1,'F');txt(label,x+5,y+4.6,5.2,muted,'bold');txt(value,x+5,y+9.6,8.5,ink,'bold');txt(sub,x+5,y+12.8,5,muted);};
-  const selTxt = SELCLI.size ? ' \u00b7 clientes: '+[...SELCLI.values()].join(', ') : ($('#qCli').value.trim()? ' \u00b7 cliente contendo "'+$('#qCli').value.trim()+'"' : '');
-  let filterText='Filtros: '+$('#fEmpresa').value+' \u00b7 '+$('#fVendedor').value+' \u00b7 compet\u00eancia (liquida\u00e7\u00e3o) '+$('#fDe').selectedOptions[0].text+' a '+$('#fAte').selectedOptions[0].text+' \u00b7 toler\u00e2ncia '+$('#fTol').value+' dia(s)'+selTxt;
-  if(filterText.length>190) filterText=filterText.slice(0,187)+'\u2026';
-  pageHeader('Relat\u00f3rio executivo de inadimpl\u00eancia',new Date().toLocaleDateString('pt-BR'));
-  txt('Vis\u00e3o consolidada do recorte selecionado',margin,33,12.5,ink,'bold'); txt(filterText,margin,38.5,6.6,muted);
-  const gap=4, cw=(W-2*margin-3*gap)/4;
-  card(margin,42,cw,'FATURAMENTO',BRL(a.v),NUM(a.n)+' t\u00edtulos');
-  card(margin+cw+gap,42,cw,'VALOR EM ATRASO',BRL(a.va),NUM(a.ni)+' t\u00edtulos',red);
-  card(margin+2*(cw+gap),42,cw,'MARGEM DE INADIMPL\u00caNCIA',PCT(a.margem),'do faturamento',a.margem>.5?red:gold);
-  card(margin+3*(cw+gap),42,cw,'PRAZO M\u00c9DIO',NUM(a.prazo,1)+' dia(s)',NUM(a.pond,1)+' ponderado',gold);
-  const cli=[...groupBy(rows,r=>r.cliKey).entries()].map(([k,rs])=>({nome:rs[0].cli,a:agg(rs)})).sort((x,y)=>y.a.va-x.a.va).slice(0,6);
-  const vend=[...groupBy(rows,r=>r.vend).entries()].map(([k,rs])=>({nome:k,a:agg(rs)})).sort((x,y)=>y.a.va-x.a.va).slice(0,6);
-  const tblStyle={font:'helvetica',fontSize:6.6,textColor:ink,cellPadding:1.7};
-  doc.autoTable({startY:66,margin:{left:margin,right:margin},head:[['Ranking hist\u00f3rico de clientes','T\u00edtulos','Valor total hist\u00f3rico','Valor em atraso hist\u00f3rico','Margem hist\u00f3rica']],body:cli.map(x=>[x.nome,x.a.n,BRL(x.a.v),BRL(x.a.va),PCT(x.a.margem)]),theme:'grid',styles:tblStyle,headStyles:{fillColor:blue,textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:pale},columnStyles:{0:{cellWidth:105},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}}});
-
-  /* ---- resumo dos volumes: cards + por m\u00eas/compet\u00eancia (entre os dois rankings) ---- */
-  let y=doc.lastAutoTable.finalY+5;
-  const comps=[...groupBy(rows,r=>r.comp).entries()].map(([c,rs])=>({c,a:agg(rs)})).sort((x,y2)=>x.c<y2.c?-1:1);
-  const abertos=rows.filter(r=>r.aberto);
-  txt('Resumo dos volumes do recorte',margin,y+0.5,9,ink,'bold');
-  y+=3.5;
-  const mw=(W-2*margin-3*gap)/4;
-  mini(margin,y,mw,'VOLUME DE T\u00cdTULOS',NUM(a.n),NUM(a.liquidados)+' liquidados \u00b7 '+NUM(abertos.length)+' em aberto');
-  mini(margin+mw+gap,y,mw,'T\u00cdTULOS EM ATRASO',NUM(a.ni),PCT(a.liquidados?a.ni/a.liquidados:0)+' dos liquidados',red);
-  mini(margin+2*(mw+gap),y,mw,'CLIENTES NO RECORTE',NUM(a.clientes),NUM(a.cliInad)+' com atraso hist\u00f3rico',gold);
-  mini(margin+3*(mw+gap),y,mw,'COMPET\u00caNCIAS',NUM(comps.length),'valor em aberto: '+BRLc(a.aberto));
-  y+=14+4;
-  const last=comps.slice(-12);
-  doc.autoTable({startY:y,margin:{left:margin,right:margin},
-    head:[['Volumes por compet\u00eancia'].concat(last.map(x=>COMPLBL(x.c)))],
-    body:[
-      ['T\u00edtulos'].concat(last.map(x=>NUM(x.a.n))),
-      ['Faturamento (R$)'].concat(last.map(x=>NUM(x.a.v,2))),
-      ['Valor em atraso (R$)'].concat(last.map(x=>NUM(x.a.va,2))),
-      ['Margem'].concat(last.map(x=>PCT(x.a.margem)))
-    ],
-    theme:'grid',styles:{font:'helvetica',fontSize:5.2,textColor:ink,cellPadding:0.9,halign:'right'},
-    headStyles:{fillColor:blue,textColor:[255,255,255],fontStyle:'bold',halign:'right'},
-    alternateRowStyles:{fillColor:pale},
-    columnStyles:{0:{cellWidth:26,halign:'left',fontStyle:'bold'}}});
-  if(comps.length>last.length) txt('Exibindo as '+last.length+' compet\u00eancias mais recentes de '+NUM(comps.length)+' no recorte.',margin,doc.lastAutoTable.finalY+3,5.5,muted);
-
-  y=doc.lastAutoTable.finalY+(comps.length>last.length?5:4);
-  doc.autoTable({startY:y,margin:{left:margin,right:margin},head:[['Ranking hist\u00f3rico de vendedores','Clientes','T\u00edtulos','Valor total hist\u00f3rico','Valor em atraso hist\u00f3rico','Margem hist\u00f3rica']],body:vend.map(x=>[x.nome,x.a.clientes,x.a.n,BRL(x.a.v),BRL(x.a.va),PCT(x.a.margem)]),theme:'grid',styles:tblStyle,headStyles:{fillColor:blue,textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:pale},columnStyles:{0:{cellWidth:80},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}}});
-  doc.addPage(); pageHeader('Detalhamento do recorte','Página 2');
-  txt('Títulos selecionados',margin,34,13,ink,'bold'); txt(NUM(rows.length)+' registros · listagem ordenada por cliente e vencimento',margin,40,7,muted);
-  const list=rows.slice().sort((x,y)=>x.cli.localeCompare(y.cli,'pt-BR')||x.venc-y.venc).slice(0,80);
-  doc.autoTable({startY:46,margin:{left:margin,right:margin},head:[['Cliente','Competência histórica','Vencimento','Liquidação','Descrição','Valor histórico','Prazo de inadimplência','Situação histórica']],body:list.map(r=>[r.cli,r.comp,fmtD(r.venc),fmtD(r.liq),(r.desc||'—').slice(0,48),BRL(r.val),r.atraso==null?'—':r.atraso+' d',r.sit]),theme:'grid',styles:{font:'helvetica',fontSize:6.3,textColor:ink,cellPadding:2},headStyles:{fillColor:blue,textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:pale},columnStyles:{0:{cellWidth:49},1:{cellWidth:18},2:{cellWidth:20},3:{cellWidth:20},4:{cellWidth:74},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:15},7:{cellWidth:38}}});
-  if(rows.length>80) txt('Listagem limitada aos 80 primeiros registros nesta visualização. Use Exportar Excel para obter o conjunto completo.',margin,H-10,7,muted);
-  const blob=doc.output('blob'), url=URL.createObjectURL(blob); window.open(url,'_blank','noopener'); setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
-
-function premissas(rows,a){
-  const tol=+$('#fTol').value||0;
-  const abertos=rows.filter(r=>r.aberto);
-  const vencidosAbertos=abertos.filter(r=>r.venc<REF);
-  const vendCount=new Set(RAW.map(r=>r.vend)).size;
-  const semVendedor=RAW.filter(r=>r.vend==='SEM VENDEDOR').length;
-  const distRisco=[...groupBy(rows,r=>r.cliKey).entries()]
-    .map(([k,rs])=>risco(agg(rs))[0])
-    .reduce((m,r)=>{ m[r]=(m[r]||0)+1; return m; },{});
-  const riscoTxt=['Crítico','Alto','Médio','Baixo'].map(k=>NUM(distRisco[k]||0)+' '+k.toLowerCase()).join(' · ');
-
-  const fonteTxt='Aba <b>Receitas</b> da planilha importada — '+NUM(RAW.length)+' de '+NUM(PARSE_STATS.totalRead)+' linhas de dados lidas foram aproveitadas ('+NUM(PARSE_STATS.discarded)+' descartadas por falta de cliente, vencimento ou valor).';
-
-  const valorTxt = PARSE_STATS.valTextCount>0
-    ? '<b>'+NUM(PARSE_STATS.valTextCount)+'</b> de '+NUM(PARSE_STATS.totalRead)+' valores vieram como texto na planilha (ex.: "'+PARSE_STATS.valTextExample+'") e foram convertidos automaticamente para número.'
-    : 'Nesta planilha, os '+NUM(RAW.length)+' valores da coluna VALOR já vieram como número — nenhuma conversão de texto foi necessária.';
-
-  const dataTxt = PARSE_STATS.dateTextCount>0
-    ? '<b>'+NUM(PARSE_STATS.dateTextCount)+'</b> datas de vencimento vieram como texto (ex.: "'+PARSE_STATS.dateTextExample+'") e foram interpretadas no padrão brasileiro (dd/mm/aaaa); as demais foram lidas como número de série do Excel.'
-    : 'Todas as datas desta planilha vieram como número de série do Excel (ou objeto data), sem necessidade de interpretar texto — sem conversão de fuso horário.';
-
-  const p=[
-    ['Fonte dos dados',fonteTxt],
-    ['Data de referência','<b>'+fmtD(REF)+'</b> — maior data de liquidação encontrada na base ('+NUM(a.liquidados)+' títulos liquidados no recorte atual). Usada apenas para classificar títulos em aberto como vencidos ou a vencer, nunca para calcular prazo de inadimplência.'],
-    ['Competência','Mês da <b>data de liquidação</b> do título, no formato AAAA-MM. Sem liquidação ('+NUM(abertos.length)+' títulos em aberto no recorte atual), usa-se o mês de vencimento apenas para posicionar o título na linha do tempo — ele continua sinalizado como não liquidado.'],
-    ['Prazo de inadimplência','Liquidação − Vencimento, em dias, apurado <b>somente entre o vencimento e a efetiva liquidação</b>. Título sem liquidação não tem prazo apurado; fica classificado apenas como em aberto ('+NUM(vencidosAbertos.length)+' já vencidos e '+NUM(abertos.length-vencidosAbertos.length)+' a vencer no recorte atual).'],
-    ['Tolerância','<b>'+tol+' dia(s)</b> (ajustável no filtro). Dos '+NUM(a.liquidados)+' títulos liquidados no recorte, '+NUM(a.ni)+' romperam essa tolerância.'],
-    ['Margem histórica de inadimplência','Valor histórico em atraso ÷ Valor total histórico do recorte = <b>'+PCT(a.margem)+'</b> no recorte atual ('+BRL(a.va)+' de '+BRL(a.v)+').'],
-    ['Prazo médio / ponderado histórico','Média aritmética e média ponderada pelo valor dos dias de atraso dos títulos historicamente inadimplentes: <b>'+NUM(a.prazo,1)+' dia(s)</b> em média e <b>'+NUM(a.pond,1)+' dia(s)</b> ponderado, no recorte atual.'],
-    ['Padronização de vendedores','Acentos, grafias divergentes e percentuais de comissão são removidos; '+NUM(semVendedor)+' de '+NUM(RAW.length)+' títulos da base não têm vendedor informado e foram agrupados como "SEM VENDEDOR". '+NUM(vendCount)+' carteiras distintas identificadas na base.'],
-    ['Tratamento de valores',valorTxt],
-    ['Tratamento de datas',dataTxt],
-    ['Classificação de risco','Crítico: margem ≥ 50% e prazo médio ≥ 30 dias · Alto: um dos dois · Médio: algum atraso · Baixo: sem atraso. No recorte atual, entre os '+NUM(a.clientes)+' clientes: '+riscoTxt+'.']
-  ];
-  $('#tPrem').innerHTML='<thead><tr><th style="cursor:default">Item</th><th style="cursor:default;text-align:left">Descrição</th></tr></thead><tbody>'+
-    p.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')+'</tbody>';
-}
-</script>
-</body>
-</html>
+const $=s=>document.querySelector(s),DAY=864e5,NUM=(v,d=0)=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),PCT=v=>NUM(v*100,1)+'%',BRL=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const BRLc=v=>{const a=Math.abs(v);return a>=1e6?'R$ '+NUM(v/1e6,2)+' mi':a>=1e3?'R$ '+NUM(v/1e3,1)+' mil':BRL(v)};
+const noAcc=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''),key=s=>noAcc(s).toUpperCase().replace(/[^A-Z0-9]/g,''),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),fmtD=d=>d?d.toLocaleDateString('pt-BR'):'—';
+const tc=s=>(s||'').toLowerCase().replace(/(^|[\s\-\/])([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase()),COMP=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),CL=c=>['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+c.slice(5)-1]+'/'+c.slice(2,4);
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function pNum(v){if(v==null||v==='')return null;if(typeof v=='number')return v;let s=String(v).replace(/[R$\s\u00a0]/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s.replace(/[^\d.\-]/g,''));return isNaN(n)?null:n}
+function pDate(v){if(v==null||v==='')return null;if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate());if(typeof v=='number'){const o=XLSX.SSF.parse_date_code(Math.floor(v+1e-6));return o?new Date(o.y,o.m-1,o.d):null}
+ const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1])}m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+function nV(v){let s=noAcc(v).toUpperCase().replace(/\d+([.,]\d+)?\s*%/g,'').replace(/\bE\b/g,'/').replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim().replace(/[\/\-]+$/,'').trim().replace(/VITALLAB/g,'VITALAB');return s||'SEM VENDEDOR'}
+const G=(a,f)=>{const m=new Map();a.forEach(r=>{const k=f(r);m.has(k)?m.get(k).push(r):m.set(k,[r])});return m};
+let RAW=[],ST={bad:0,n:0},SEL=new Map(),FOCO=null,RK='cli',CH={},TV=[];
+const hsl=[...document.querySelectorAll('#home .slide')];let hci=0;const hdots=document.querySelector('#home #dots');
+hsl.forEach((_,i)=>{const d=document.createElement('i');d.onclick=()=>hgo(i);hdots.appendChild(d)});
+function hgo(i){hci=i;hsl.forEach((x,j)=>x.classList.toggle('on',j==i));[...hdots.children].forEach((d,j)=>d.classList.toggle('on',j==i))}
+hgo(0);setInterval(()=>hgo((hci+1)%hsl.length),4500);
+async function dl(name,data){try{const D=window.claude&&await claude.use('downloads');if(D)return await D.save({filename:name,data})}catch(e){if(e&&e.code=='declined')return}const u=URL.createObjectURL(data instanceof Blob?data:new Blob([data])),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),6e4)}
+/* tema */
+const ap=t=>{document.documentElement.dataset.theme=t;try{localStorage.setItem('inad-th',t)}catch(e){}if(RAW.length)render()};
+try{const t=localStorage.getItem('inad-th');if(t)document.documentElement.dataset.theme=t}catch(e){}
+$('#bTh').onclick=()=>ap(((document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))=='dark')?'light':'dark');
+/* leitura */
+const msg=(t,e)=>{$('#msg').textContent=t;$('#msg').className=e?'err':'mu'};
+$('#bImp').onclick=$('#bImp2').onclick=()=>$('#file').click();$('#file').onchange=e=>{if(e.target.files[0])read(e.target.files[0]);e.target.value=''};
+async function read(f){msg('Lendo '+f.name+'…');await new Promise(r=>setTimeout(r,30));
+ try{const buf=await f.arrayBuffer(),names=XLSX.read(buf,{type:'array',bookSheets:true}).SheetNames,nm=names.find(n=>key(n)=='RECEITAS')||names.find(n=>key(n).includes('RECEITA'));
+  if(!nm)return msg('Aba “Receitas” não encontrada. Abas: '+names.join(', '),1);
+  const wb=XLSX.read(buf,{type:'array',sheets:nm}),rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:null}),out=build(rows);
+  if(!out.length)return msg('Não localizei linhas com CLIENTE, VENCIMENTO e VALOR na aba “'+nm+'”.',1);
+  RAW=out;const lq=RAW.filter(r=>r.liq).map(r=>+r.liq);$('#fRef').value=ymd(lq.length?new Date(Math.max(...lq)):new Date());
+  $('#home').classList.add('hide');$('#appShell').classList.remove('hide');$('#app').classList.remove('hide');$('#info').innerHTML='<b>'+esc(f.name)+'</b> · aba '+esc(nm)+' · '+NUM(RAW.length)+' títulos';initF();render()}catch(e){console.error(e);msg('Falha ao ler o arquivo: '+e.message,1)}}
+function build(rows){const W={CLIENTE:'cli',VENCIMENTO:'venc',DESCRICAO:'desc',VALOR:'val',LIQUIDACAO:'liq',VENDEDOR:'vend',EMPRESA:'emp'};let h=-1,m={};
+ for(let i=0;i<Math.min(rows.length,30)&&h<0;i++){const x={};(rows[i]||[]).forEach((c,j)=>{const k=key(c);if(W[k])x[W[k]]=j});if(x.cli!=null&&x.venc!=null&&x.val!=null){h=i;m=x}}
+ if(h<0)return[];const o=[];let bad=0;
+ for(const r of rows.slice(h+1)){if(!r||r.every(c=>c==null||c===''))continue;const venc=pDate(r[m.venc]),val=pNum(r[m.val]);if(!r[m.cli]||!venc||val==null){bad++;continue}
+  o.push({cli:tc(String(r[m.cli]).trim()),ck:key(r[m.cli]),venc,val,liq:m.liq!=null?pDate(r[m.liq]):null,desc:String(r[m.desc]??'').trim(),vend:nV(m.vend!=null?r[m.vend]:''),emp:String(r[m.emp]??'—').trim().toUpperCase()||'—'})}
+ ST={bad,n:o.length+bad};return o}
+/* filtros */
+const TOL=()=>0;
+function initF(){const cs=[...new Set(RAW.flatMap(r=>[COMP(r.venc),r.liq?COMP(r.liq):null]).filter(Boolean))].sort(),fl=(s,a,l)=>$(s).innerHTML=a.map(v=>`<option value="${esc(v)}">${esc(l?l(v):v)}</option>`).join('');
+ fl('#fEmp',['Todas',...new Set(RAW.map(r=>r.emp))].sort((a,b)=>a=='Todas'?-1:b=='Todas'?1:a.localeCompare(b)));fl('#fVend',['Todos',...[...new Set(RAW.map(r=>r.vend))].sort()]);fl('#fDe',cs,CL);fl('#fAte',cs,CL);
+ const rs=()=>{$('#fDe').value=cs[0];$('#fAte').value=cs.at(-1)};rs();
+ ['#fEmp','#fVend','#fBase','#fDe','#fAte','#fRef'].forEach(s=>$(s).onchange=render);
+ $('#bRst').onclick=()=>{$('#fEmp').value='Todas';$('#fVend').value='Todos';$('#fBase').value='liq';rs();$('#qCli').value='';SEL=new Map();FOCO=null;sug();render()};
+ $('#qCli').oninput=()=>{sug();render()};$('#qCli').onfocus=sug;document.addEventListener('click',e=>{if(!e.target.closest('#sug,#qCli'))$('#sug').classList.add('hide')});
+ $('#qT').oninput=$('#fSit').onchange=()=>tit(CUR);$('#bX').onclick=xl;$('#bP').onclick=pdf;$('#dX').onclick=()=>{FOCO=null;render()};
+ $('#tabs').onclick=e=>{if(!e.target.dataset.k)return;RK=e.target.dataset.k;[...$('#tabs').children].forEach(b=>b.classList.toggle('on',b==e.target));rank(CUR)};
+ document.addEventListener('click',e=>{const t=e.target.closest('tr[data-k]');if(t){FOCO=t.dataset.k;render();$('#det').scrollIntoView({behavior:'smooth'})}})}
+function sug(){const b=$('#sug'),raw=$('#qCli').value.trim(),q=key(raw);if(!raw&&!SEL.size){b.classList.add('hide');return}
+ const m=new Map();RAW.forEach(r=>{if(!q||r.ck.includes(q))m.set(r.ck,r.cli)});const a=[...m].sort((x,y)=>x[1].localeCompare(y[1],'pt-BR')).slice(0,80);
+ b.innerHTML=a.map(([k,n])=>`<label><input type="checkbox" data-k="${k}" ${SEL.has(k)?'checked':''}>${esc(n)}</label>`).join('')||'<div class="mu p">Nenhum cliente.</div>';b.classList.remove('hide');
+ b.querySelectorAll('input').forEach(c=>c.onchange=()=>{c.checked?SEL.set(c.dataset.k,m.get(c.dataset.k)):SEL.delete(c.dataset.k);render()})}
+let CUR=[];
+function current(){const e=$('#fEmp').value,v=$('#fVend').value,de=$('#fDe').value,ate=$('#fAte').value,t=TOL(),bs=$('#fBase').value,q=key($('#qCli').value),ref=new Date($('#fRef').value+'T00:00');
+ return RAW.map(r=>{const o={...r};o.comp=COMP(bs=='liq'?(r.liq||r.venc):r.venc);return o}).filter(r=>(e=='Todas'||r.emp==e)&&(v=='Todos'||r.vend==v)&&r.comp>=de&&r.comp<=ate&&(SEL.size?SEL.has(r.ck):(!q||r.ck.includes(q)))).map(r=>{
+  r.dias=r.liq?Math.round((r.liq-r.venc)/DAY):null;r.eff=r.liq?Math.max(0,r.dias):(r.venc<ref?Math.round((ref-r.venc)/DAY):null);r.inad=r.eff!=null&&r.eff>t;
+  r.sit=r.liq?(r.inad?'Pago com atraso':'Pago no prazo'):(r.venc<ref?'Em aberto vencido':'Em aberto a vencer');return r})}
+/* métricas */
+const score=p=>p<=3?'A':p<=10?'B':p<=30?'C':p<=60?'D':'E',SD={A:'Pontual',B:'Bom',C:'Moderado',D:'Atrasador',E:'Crítico'};
+function agg(rs){const t=TOL(),a={n:rs.length,v:0,va:0,vab:0,ni:0,sd:0,ne:0,vw:0,sw:0,pt:0,v30:0,ab:0,ant:0,vant:0,ef:[]};
+ for(const r of rs){a.v+=r.val;if(!r.liq)a.ab+=r.val;if(r.dias<0){a.ant++;a.vant+=r.val}
+  if(r.eff!=null){a.ne++;a.vw+=r.val;a.sw+=r.val*r.eff;a.ef.push(r.eff);if(r.eff<=t)a.pt++;if(r.eff>30)a.v30+=r.val;if(r.inad){a.ni++;a.sd+=r.eff;r.liq?a.va+=r.val:a.vab+=r.val}}}
+ a.vi=a.va+a.vab;a.margem=a.v?a.vi/a.v:0;a.prazo=a.ni?a.sd/a.ni:0;a.pond=a.vw?a.sw/a.vw:0;a.pont=a.ne?a.pt/a.ne:1;a.ef.sort((x,y)=>x-y);a.med=a.ef.length?a.ef[a.ef.length>>1]:0;a.max=a.ef.length?a.ef.at(-1):0;a.sc=score(a.pond);a.cli=new Set(rs.map(r=>r.ck)).size;a.cliI=new Set(rs.filter(r=>r.inad).map(r=>r.ck)).size;return a}
+function beh(rs){const a=agg(rs),m=[...G(rs.filter(r=>r.eff!=null),r=>r.comp)].sort((x,y)=>x[0]<y[0]?-1:1),f=x=>{let s=0,w=0;x.forEach(([,q])=>q.forEach(r=>{s+=r.eff*r.val;w+=r.val}));return w?s/w:null},L=f(m.slice(-6)),P=f(m.slice(-12,-6));
+ a.rec=m.length?m.filter(([,q])=>q.some(r=>r.inad)).length/m.length:0;a.d=L==null||P==null?null:L-P;a.meses=m.length;return a}
+const trd=d=>d==null?['—','nt']:d>3?['Piorando ▲','bd']:d<-3?['Melhorando ▼','ok']:['Estável ●','nt'];
+/* render */
+function mk(id,cfg){const cv=getComputedStyle(document.documentElement),mu=cv.getPropertyValue('--mu').trim();Chart.defaults.color=mu;Chart.defaults.borderColor=cv.getPropertyValue('--ln').trim();Chart.defaults.font.family='Manrope';CH[id]&&CH[id].destroy();CH[id]=new Chart($('#'+id),{...cfg,options:{maintainAspectRatio:false,...cfg.options}})}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function render(){const R=current();CUR=R;$('#sug').classList.contains('hide')||sug();
+ $('#chips').innerHTML=[...SEL].map(([k,n])=>`<span class="chip">${esc(n)}<button data-x="${k}">×</button></span>`).join('');$('#chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{SEL.delete(b.dataset.x);render()});
+ const a=agg(R),C=[...G(R,r=>r.ck)].map(([k,rs])=>({k,nome:rs[0].cli,...beh(rs)})),sc={};C.forEach(c=>sc[c.sc]=(sc[c.sc]||0)+1);
+ const kp=(t,v,s,c)=>`<div class="c kp" style="--c:${c||'var(--b2)'}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+ $('#kpis').innerHTML=[kp('Faturamento no recorte',BRL(a.v),NUM(a.n)+' títulos · '+NUM(a.cli)+' clientes'),
+  kp('Em atraso',BRL(a.vi),'pago '+BRLc(a.va)+' + em aberto vencido '+BRLc(a.vab),'var(--rd)'),
+  kp('Margem de inadimplência',PCT(a.margem),'do faturamento do recorte','var(--am)'),
+  kp('Prazo médio dos atrasos',NUM(a.prazo,1)+' dias','ponderado geral (todos os títulos): '+NUM(a.pond,1)+' d · mediana '+a.med,'var(--am)'),
+  kp('Pontualidade',PCT(a.pont),'títulos pagos até o vencimento','var(--gr)'),
+  kp('Clientes com atraso',NUM(a.cliI),PCT(a.cli?a.cliI/a.cli:0)+' da base · score A:'+(sc.A||0)+' B:'+(sc.B||0)+' C:'+(sc.C||0)+' D:'+(sc.D||0)+' E:'+(sc.E||0)),
+  kp('Atraso > 30 dias',BRL(a.v30),PCT(a.v?a.v30/a.v:0)+' do faturamento','var(--rd)'),
+  kp('Em aberto',BRL(a.ab),a.ab?'títulos sem liquidação':'toda a base está liquidada · antecipados: '+NUM(a.ant),'var(--b2)')].join('');
+ insights(R,a,C);charts(R,a);charts2(R);heat(R,C);detail(R);rank(R);tit(R);prem(R,a)}
+function insights(R,a,C){const o=[],S=[...C].sort((x,y)=>y.vi-x.vi),top5=S.slice(0,5).reduce((s,c)=>s+c.vi,0),cm=[...G(R,r=>r.comp)].map(([k,rs])=>({k,...agg(rs)})).sort((x,y)=>x.k<y.k?-1:1),re=cm.slice(-7),pr=cm.slice(-14,-7),mg=x=>x.reduce((s,c)=>s+c.vi,0)/(x.reduce((s,c)=>s+c.v,0)||1);
+ o.push(['crit','Margem de '+PCT(a.margem),BRL(a.vi)+' de '+BRL(a.v)+' foram pagos com atraso ou seguem vencidos em aberto — capital de giro financiado involuntariamente.']);
+ if(S[0]&&S[0].vi)o.push([top5/(a.vi||1)>=.6?'crit':'','Concentração de risco','Os 5 maiores respondem por '+PCT(top5/(a.vi||1))+' do valor em atraso. O maior é '+esc(S[0].nome)+' ('+BRL(S[0].vi)+', score '+S[0].sc+').']);
+ if(re.length&&pr.length){const d=mg(re)-mg(pr);o.push([d>0?'crit':'ok','Tendência da carteira','Margem de '+PCT(mg(re))+' nas 7 últimas competências vs. '+PCT(mg(pr))+' nas 7 anteriores: '+(d>0?'deterioração':'melhora')+' de '+NUM(Math.abs(d)*100,1)+' p.p.'])}
+ const de=C.filter(c=>c.sc=='D'||c.sc=='E'),pi=C.filter(c=>c.d!=null&&c.d>3&&c.v>=a.v*.002).sort((x,y)=>y.d-x.d);
+ o.push(['','Perfil comportamental',NUM(de.length)+' cliente(s) com score D/E concentram '+PCT(a.v?de.reduce((s,c)=>s+c.v,0)/a.v:0)+' do faturamento.'+(pi.length?' Em deterioração recente: '+esc(pi[0].nome)+' (+'+NUM(pi[0].d,1)+' dias vs. o semestre anterior).':'')]);
+ const rc=C.filter(c=>c.meses>=4&&c.rec>=.7);if(rc.length)o.push(['','Atrasadores recorrentes',NUM(rc.length)+' cliente(s) atrasaram em 70% ou mais dos meses em que compraram — atraso é hábito, não exceção.']);
+ if(a.ab)o.push(['crit','Em aberto',BRL(a.vab)+' já vencidos e sem liquidação — priorizar cobrança ativa.']);
+ const V=[...G(R,r=>r.vend)].map(([k,rs])=>({k,...agg(rs)})).filter(v=>v.v>=a.v*.02).sort((x,y)=>y.margem-x.margem);if(V.length>1)o.push(['','Carteiras','Pior margem: '+esc(V[0].k)+' ('+PCT(V[0].margem)+'). Melhor: '+esc(V.at(-1).k)+' ('+PCT(V.at(-1).margem)+').']);
+ $('#ins').innerHTML=o.map(x=>`<div class="ins ${x[0]}"><b>${x[1]}</b>${x[2]}</div>`).join('')}
+function charts(R,a){const cm=[...G(R,r=>r.comp)].map(([k,rs])=>({k,...agg(rs)})).sort((x,y)=>x.k<y.k?-1:1),b2=css('--b2'),am=css('--am'),gr=css('--gr');
+ mk('chM',{data:{labels:cm.map(x=>CL(x.k)),datasets:[{type:'bar',label:'Faturamento',data:cm.map(x=>x.v),backgroundColor:css('--sf'),yAxisID:'y',order:3},{type:'bar',label:'Valor em atraso',data:cm.map(x=>x.vi),backgroundColor:b2,yAxisID:'y',order:2},
+  {type:'line',label:'Margem (%)',data:cm.map(x=>x.margem*100),borderColor:am,backgroundColor:am,tension:.3,pointRadius:2,yAxisID:'y1',order:1},{type:'line',label:'Prazo pond. (dias)',data:cm.map(x=>+x.pond.toFixed(1)),borderColor:gr,backgroundColor:gr,tension:.3,pointRadius:2,yAxisID:'y2',order:1}]},
+  options:{interaction:{mode:'index',intersect:false},scales:{y:{ticks:{callback:v=>BRLc(v)}},y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{callback:v=>v+'%',color:am}},y2:{display:false}}}});
+ const t=TOL(),ms=R.filter(r=>r.liq),B=[['No prazo (até o vencimento)',r=>!r.inad],['Até 15 dias',r=>r.eff<=15],['16–30 dias',r=>r.eff<=30],['31–60 dias',r=>r.eff<=60],['61–90 dias',r=>r.eff<=90],['91–180 dias',r=>r.eff<=180],['Acima de 180 dias',r=>1]],cor=['#11705a','#2a8fb8','#14618f','#c9871f','#e07a2f','#b3261e','#5d1410'],dat=B.map(()=>0);
+ ms.forEach(r=>{const i=B.findIndex(f=>f[1](r));dat[i]+=r.val});const ab=[R.filter(r=>r.sit=='Em aberto vencido'),R.filter(r=>r.sit=='Em aberto a vencer')].map(x=>x.reduce((s,r)=>s+r.val,0));
+ mk('chA',{type:'doughnut',data:{labels:[...B.map(f=>f[0]),'Em aberto vencido','Em aberto a vencer'],datasets:[{data:[...dat,...ab],backgroundColor:[...cor,'#6b5ca5','#5b7c99'],borderColor:css('--pn')}]},options:{cutout:'55%',plugins:{title:{display:true,text:'Valor por faixa de atraso (aging)'},legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:c=>' '+BRL(c.parsed)}}}}});
+ const T=[...G(R,r=>r.ck)].map(([k,rs])=>({n:rs[0].cli,...agg(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,10).reverse();
+ mk('chT',{type:'bar',data:{labels:T.map(x=>x.n.length>32?x.n.slice(0,30)+'…':x.n),datasets:[{label:'Valor em atraso',data:T.map(x=>x.vi),backgroundColor:css('--rd')},{label:'Faturamento',data:T.map(x=>x.v),backgroundColor:css('--sf')}]},options:{indexAxis:'y',plugins:{title:{display:true,text:'10 maiores clientes por valor em atraso'}},scales:{x:{ticks:{callback:v=>BRLc(v)}}}}});
+ const V=[...G(R,r=>r.vend)].map(([k,rs])=>({n:k,...agg(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,10);
+ mk('chV',{data:{labels:V.map(x=>x.n.length>16?x.n.slice(0,15)+'…':x.n),datasets:[{type:'bar',label:'Valor em atraso',data:V.map(x=>x.vi),backgroundColor:css('--br'),yAxisID:'y'},{type:'line',label:'Margem (%)',data:V.map(x=>x.margem*100),borderColor:am,backgroundColor:am,yAxisID:'y1'}]},options:{plugins:{title:{display:true,text:'Atraso por carteira de vendedor'}},scales:{y:{ticks:{callback:v=>BRLc(v)}},y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}})}
+const VB=[['Até R$ 1 mil',0,1e3],['R$ 1–5 mil',1e3,5e3],['R$ 5–20 mil',5e3,2e4],['R$ 20–100 mil',2e4,1e5],['Acima de R$ 100 mil',1e5,1e15]],WD=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const wk=R=>WD.map((_,i)=>{const x=R.filter(r=>r.liq&&r.liq.getDay()==i),v=x.reduce((s,r)=>s+r.val,0),va=x.filter(r=>r.inad).reduce((s,r)=>s+r.val,0);return{n:x.length,v,va,p:v?va/v:0}}),vb=R=>VB.map(b=>agg(R.filter(r=>r.val>=b[1]&&r.val<b[2])));
+function charts2(R){const w=wk(R),b=vb(R),am=css('--am'),gr=css('--gr');
+ mk('chW',{data:{labels:WD,datasets:[{type:'bar',label:'Valor quitado',data:w.map(x=>x.v),backgroundColor:css('--b2'),yAxisID:'y'},{type:'line',label:'% do valor quitado com atraso',data:w.map(x=>+(x.p*100).toFixed(1)),borderColor:am,backgroundColor:am,yAxisID:'y1'}]},options:{plugins:{title:{display:true,text:'Dia da semana de quitação'}},scales:{y:{ticks:{callback:v=>BRLc(v)}},y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+ mk('chB',{data:{labels:VB.map(x=>x[0]),datasets:[{type:'bar',label:'Prazo pond. (dias)',data:b.map(x=>+x.pond.toFixed(1)),backgroundColor:am,yAxisID:'y'},{type:'line',label:'Pontualidade (%)',data:b.map(x=>+(x.pont*100).toFixed(1)),borderColor:gr,backgroundColor:gr,yAxisID:'y1'}]},options:{plugins:{title:{display:true,text:'Atraso e pontualidade por faixa de valor do título'}},scales:{y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}})}
+function heat(R,C){const cs=[...new Set(R.map(r=>r.comp))].sort().slice(-12),top=[...C].sort((x,y)=>y.vi-x.vi||y.v-x.v).slice(0,15);
+ $('#hm').innerHTML='<thead><tr><th>Cliente</th>'+cs.map(c=>`<th style="text-align:center">${CL(c)}</th>`).join('')+'<th>Score</th></tr></thead><tbody>'+top.map(c=>{const rs=R.filter(r=>r.ck==c.k);
+  return `<tr data-k="${c.k}"><td>${esc(c.nome)}</td>`+cs.map(m=>{const x=rs.filter(r=>r.comp==m&&r.eff!=null),w=x.reduce((s,r)=>s+r.val,0);if(!w)return '<td class="mu" style="color:var(--mu)">·</td>';const p=x.reduce((s,r)=>s+r.eff*r.val,0)/w,t=Math.min(1,p/60);return `<td title="${NUM(p,1)} dias · ${BRL(w)}" style="background:hsl(${145-145*t},55%,${40-(p>0?0:0)}%)">${NUM(p)}</td>`}).join('')+`<td><span class="tag s${c.sc}">${c.sc}</span></td></tr>`}).join('')+'</tbody>'}
+function detail(R){const d=$('#det');if(!FOCO){d.classList.add('hide');return}const rs=R.filter(r=>r.ck==FOCO);if(!rs.length){d.classList.add('hide');return}d.classList.remove('hide');
+ const a=beh(rs),tr=trd(a.d),cm=[...G(rs,r=>r.comp)].map(([k,x])=>({k,...agg(x)})).sort((x,y)=>x.k<y.k?-1:1);
+ $('#dT').textContent='Linha do tempo · '+rs[0].cli;$('#dS').innerHTML=`Score <span class="tag s${a.sc}">${a.sc} · ${SD[a.sc]}</span> · prazo pond. <b>${NUM(a.pond,1)} d</b> · mediana ${a.med} d · pontualidade ${PCT(a.pont)} · atrasou em ${PCT(a.rec)} dos ${a.meses} meses · tendência <b class="${tr[1]}">${tr[0]}</b>${a.d!=null?' ('+(a.d>0?'+':'')+NUM(a.d,1)+' d vs. semestre anterior)':''} · em atraso ${BRL(a.vi)}`;
+ mk('chD',{data:{labels:cm.map(x=>CL(x.k)),datasets:[{type:'bar',label:'Valor',data:cm.map(x=>x.v),backgroundColor:css('--sf'),yAxisID:'y'},{type:'line',label:'Prazo pond. (dias)',data:cm.map(x=>x.ne?+x.pond.toFixed(1):null),borderColor:css('--am'),backgroundColor:css('--am'),spanGaps:true,tension:.25,yAxisID:'y1'},{type:'line',label:'Pontualidade (%)',data:cm.map(x=>x.ne?+(x.pont*100).toFixed(0):null),borderColor:css('--gr'),backgroundColor:css('--gr'),spanGaps:true,yAxisID:'y2'}]},options:{scales:{y:{ticks:{callback:v=>BRLc(v)}},y1:{position:'right',grid:{display:false}},y2:{display:false,min:0,max:100}}}})}
+function tbl(el,cols,rows){const s=el._s,d=el._d||-1;let R=rows.slice();if(s!=null)R.sort((a,b)=>{const x=a.c[s][1],y=b.c[s][1];return(typeof x=='number'?x-y:String(x).localeCompare(String(y),'pt-BR'))*d});
+ el.innerHTML='<thead><tr>'+cols.map((c,i)=>`<th data-i="${i}">${c}</th>`).join('')+'</tr></thead><tbody>'+R.map(r=>`<tr ${r.k?'data-k="'+r.k+'"':''}>`+r.c.map(c=>`<td>${c[0]}</td>`).join('')+'</tr>').join('')+'</tbody>';
+ el.querySelectorAll('th').forEach(th=>th.onclick=e=>{e.stopPropagation();const i=+th.dataset.i;if(el._s===i)el._d=-(el._d||-1);else{el._s=i;el._d=-1}tbl(el,cols,rows)})}
+function rank(R){let L;const mk=(k,nome,a)=>{const tr=trd(a.d);return{k,c:[[esc(nome),nome],[NUM(a.n),a.n],[BRL(a.v),a.v],[BRL(a.vi),a.vi],[PCT(a.margem),a.margem],[NUM(a.prazo,1),a.prazo],[NUM(a.pond,1),a.pond],[a.med,a.med],[PCT(a.pont),a.pont],[PCT(a.rec),a.rec],[`<span class="${tr[1]}">${tr[0]}</span>`,a.d==null?0:a.d],[`<span class="tag s${a.sc}">${a.sc} · ${SD[a.sc]}</span>`,a.pond]]}};
+ const minV=R.reduce((s,r)=>s+r.val,0)*.001,g=RK=='vend'?G(R,r=>r.vend):G(R,r=>r.ck);let A=[...g].map(([k,rs])=>({k:RK=='vend'?null:k,nome:RK=='vend'?k:rs[0].cli,...beh(rs)}));
+ if(RK=='pior')A=A.filter(c=>c.n>=3&&c.v>=minV).sort((x,y)=>y.pond-x.pond).slice(0,50);else if(RK=='melhor')A=A.filter(c=>c.n>=3&&c.v>=minV).sort((x,y)=>x.pond-y.pond||y.v-x.v).slice(0,50);else A.sort((x,y)=>y.vi-x.vi);
+ $('#rkI').textContent=NUM(A.length)+' registros · clique no cliente para ver a linha do tempo';const t=$('#tR');t._s=null;
+ tbl(t,['Nome','Títulos','Valor total','Valor em atraso','Margem','Prazo médio atrasos (d)','Prazo pond. (d)','Mediana (d)','Pontualidade','Recorrência','Tendência','Score'],A.map(a=>mk(a.k,a.nome,a)))}
+function tit(R){const q=key($('#qT').value),s=$('#fSit').value;TV=R.filter(r=>(!q||key(r.cli+r.desc).includes(q))&&(!s||r.sit==s)).sort((a,b)=>a.cli.localeCompare(b.cli,'pt-BR')||a.venc-b.venc);$('#tI').textContent=NUM(TV.length)+' de '+NUM(R.length)+' títulos';
+ $('#tT').innerHTML='<thead><tr>'+['Cliente','Vencimento','Liquidação','Descrição','Valor','Vendedor','Empresa','Dias (liq.−venc.)','Dias em atraso','Situação'].map(c=>`<th style="cursor:default">${c}</th>`).join('')+'</tr></thead><tbody>'+TV.slice(0,600).map(r=>`<tr><td>${esc(r.cli)}</td><td>${fmtD(r.venc)}</td><td>${fmtD(r.liq)}</td><td style="white-space:normal;text-align:left;max-width:260px">${esc(r.desc||'—')}</td><td>${BRL(r.val)}</td><td>${esc(r.vend)}</td><td>${esc(r.emp)}</td><td>${r.dias==null?'—':r.dias}</td><td>${r.eff==null?'—':r.eff}</td><td><span class="tag ${r.sit.includes('vencido')||r.sit.includes('com atraso')?'bd':r.sit.includes('prazo')?'ok':'nt'}">${r.sit}</span></td></tr>`).join('')+'</tbody>'}
+function xl(){if(!TV.length)return alert('Nenhum título para exportar.');const ws=XLSX.utils.aoa_to_sheet([['CLIENTE','COMPETÊNCIA','VENCIMENTO','LIQUIDAÇÃO','DESCRIÇÃO','VALOR','VENDEDOR','EMPRESA','DIAS (LIQ−VENC)','DIAS EM ATRASO','SITUAÇÃO'],...TV.map(r=>[r.cli,r.comp,r.venc,r.liq,r.desc,r.val,r.vend,r.emp,r.dias??'',r.eff??'',r.sit])],{cellDates:true});ws['!cols']=[30,11,12,12,40,14,22,13,12,12,20].map(w=>({wch:w}));ws['!autofilter']={ref:ws['!ref']};
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Títulos');dl('titulos_inadimplencia.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx',cellDates:true}))}
+function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)return alert('O módulo de PDF não carregou. Verifique a conexão.');const R=CUR;if(!R.length)return alert('Nenhum registro no recorte.');
+ const d=new J({orientation:'landscape',unit:'mm',format:'a4'}),W=297,m=12,bl=[14,58,92],go=[201,135,31],ink=[26,37,64],mu=[102,116,143],pl=[244,246,250],rd=[179,38,30],a=agg(R);
+ const tx=(s,x,y,z,c,b)=>{d.setFont('helvetica',b?'bold':'normal');d.setFontSize(z||8);d.setTextColor(...(c||ink));d.text(String(s),x,y)};
+ const hd=(t,p)=>{d.setFillColor(...bl);d.rect(0,0,W,22,'F');d.setFillColor(...go);d.roundedRect(m,5,12,12,3,3,'F');tx('GL',m+2.5,12.8,8,[42,26,2],1);tx('GRUPO LABMEDIC',28,10,12,[255,255,255],1);tx(t,28,16,8,[220,235,246]);tx(p,W-m-28,10,7,[220,235,246])};
+ const cd=(x,y,w,l,v,s,c)=>{d.setFillColor(255,255,255);d.setDrawColor(220,226,235);d.roundedRect(x,y,w,21,3,3,'FD');d.setFillColor(...(c||bl));d.roundedRect(x,y,2.2,21,1,1,'F');tx(l,x+6,y+6,6,mu,1);tx(v,x+6,y+13.5,11,ink,1);tx(s,x+6,y+18.5,5.8,mu)};
+ const T=(y,h,b)=>{d.autoTable({startY:y,margin:{left:m,right:m},head:[h],body:b,theme:'grid',styles:{font:'helvetica',fontSize:6.6,textColor:ink,cellPadding:1.6},headStyles:{fillColor:bl,textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:pl},columnStyles:Object.fromEntries(h.slice(1).map((_,i)=>[i+1,{halign:'right'}]))});return d.lastAutoTable.finalY+5};
+ const tr=x=>x==null?'-':x>3?'Piorando':x<-3?'Melhorando':'Estável',nm=s=>s.length>46?s.slice(0,45)+'…':s;
+ const ft='Filtros: '+$('#fEmp').value+' · '+$('#fVend').value+' · competência por '+($('#fBase').value=='liq'?'liquidação':'vencimento')+' '+$('#fDe').selectedOptions[0].text+' a '+$('#fAte').selectedOptions[0].text+' · referência '+fmtD(new Date($('#fRef').value+'T00:00'))+(SEL.size?' · clientes: '+[...SEL.values()].join(', '):'');
+ hd('Relatório executivo de inadimplência histórica e comportamental',new Date().toLocaleDateString('pt-BR'));tx('Visão consolidada do recorte',m,31,12.5,ink,1);tx(ft.length>200?ft.slice(0,197)+'…':ft,m,36.5,6.6,mu);
+ const g=4,cw=(W-2*m-3*g)/4;cd(m,40,cw,'FATURAMENTO',BRL(a.v),NUM(a.n)+' títulos · '+NUM(a.cli)+' clientes');cd(m+cw+g,40,cw,'VALOR EM ATRASO',BRL(a.vi),NUM(a.ni)+' títulos',rd);cd(m+2*(cw+g),40,cw,'MARGEM DE INADIMPLÊNCIA',PCT(a.margem),'do faturamento',go);cd(m+3*(cw+g),40,cw,'PRAZO PONDERADO',NUM(a.pond,1)+' dia(s)','pontualidade '+PCT(a.pont),go);
+ const C=[...G(R,r=>r.ck)].map(([k,rs])=>({nome:rs[0].cli,...beh(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,10),V=[...G(R,r=>r.vend)].map(([k,rs])=>({nome:k,...beh(rs)})).sort((x,y)=>y.vi-x.vi).slice(0,6);
+ let y=T(66,['Clientes (maior valor em atraso)','Títulos','Valor total','Valor em atraso','Margem','Prazo pond. (d)','Pontualidade','Tendência','Score'],C.map(c=>[nm(c.nome),c.n,BRL(c.v),BRL(c.vi),PCT(c.margem),NUM(c.pond,1),PCT(c.pont),tr(c.d),c.sc]));
+ T(y,['Vendedores','Títulos','Valor total','Valor em atraso','Margem','Prazo pond. (d)','Pontualidade','Tendência','Score'],V.map(c=>[c.nome,c.n,BRL(c.v),BRL(c.vi),PCT(c.margem),NUM(c.pond,1),PCT(c.pont),tr(c.d),c.sc]));
+ d.addPage();hd('Evolução mensal e hábitos de pagamento','Página 2');const cm=[...G(R,r=>r.comp)].map(([k,rs])=>({k,...agg(rs)})).sort((x,y)=>x.k<y.k?-1:1).slice(-12);
+ y=T(30,['Competência',...cm.map(x=>CL(x.k))],[['Títulos',...cm.map(x=>NUM(x.n))],['Faturamento (R$)',...cm.map(x=>NUM(x.v))],['Em atraso (R$)',...cm.map(x=>NUM(x.vi))],['Margem',...cm.map(x=>PCT(x.margem))],['Prazo pond. (d)',...cm.map(x=>NUM(x.pond,1))]]);
+ const w=wk(R),tw=w.reduce((s,x)=>s+x.v,0);y=T(y,['Dia da semana de quitação','Títulos','Valor quitado','% do valor','% quitado com atraso'],w.map((x,i)=>[WD[i],NUM(x.n),BRL(x.v),PCT(tw?x.v/tw:0),PCT(x.p)]));
+ T(y,['Faixa de valor do título','Títulos','Valor','Prazo pond. (d)','Pontualidade'],vb(R).map((x,i)=>[VB[i][0],NUM(x.n),BRL(x.v),NUM(x.pond,1),PCT(x.pont)]));
+ d.addPage();hd('Títulos com maior atraso','Página 3');T(30,['Cliente','Vencimento','Liquidação','Valor','Dias em atraso','Vendedor','Empresa','Situação'],R.filter(r=>r.eff!=null).sort((x,y)=>y.eff-x.eff).slice(0,50).map(r=>[nm(r.cli),fmtD(r.venc),fmtD(r.liq),BRL(r.val),r.eff,r.vend,r.emp,r.sit]));
+ dl('relatorio_inadimplencia.pdf',d.output('blob'))}
+function prem(R,a){const ab=R.filter(r=>!r.liq);$('#pr').innerHTML=[
+ ['Fonte','Aba Receitas · '+NUM(ST.n-ST.bad)+' de '+NUM(ST.n)+' linhas aproveitadas ('+NUM(ST.bad)+' sem cliente, vencimento ou valor).'],
+ ['Dias de atraso','Liquidação − vencimento. Antecipados (negativos) contam como 0 no atraso, mas são tabulados à parte. Título em aberto e vencido tem atraso corrente = data de referência − vencimento (hoje: '+NUM(ab.filter(r=>r.eff!=null).length)+' no recorte).'],
+ ['Tolerância','<b>Sem tolerância</b>: qualquer atraso de 1 dia ou mais caracteriza inadimplência, tanto no histórico quanto no comportamento.'],
+ ['Competência','Mês da liquidação (títulos em aberto usam o vencimento) ou, à escolha, mês do vencimento.'],
+ ['Margem','(Pago com atraso + em aberto vencido) ÷ faturamento do recorte = <b>'+PCT(a.margem)+'</b>.'],
+ ['Prazo médio × ponderado','Médio: dias médios só dos títulos inadimplentes. Ponderado: dias ponderados pelo valor de <i>todos</i> os títulos apurados — base do score.'],
+ ['Score A–E','Prazo ponderado do cliente: A ≤ 3 d · B ≤ 10 · C ≤ 30 · D ≤ 60 · E > 60.'],
+ ['Recorrência e tendência','Recorrência: % dos meses ativos com ao menos um título inadimplente. Tendência: prazo ponderado dos últimos 6 meses ativos do cliente vs. os 6 anteriores (±3 dias = estável).'],
+ ['Vendedores','Grafias normalizadas (acentos, % de comissão, “e” → “/”); vazios = SEM VENDEDOR.']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}
+</script></body></html>
